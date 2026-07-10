@@ -430,9 +430,11 @@ ai_ids_infra/
 ├── README.md
 ├── requirements.txt
 ├── app/
+│   ├── __init__.py
 │   ├── main.py
 │   ├── config.py
 │   ├── api/
+│   │   ├── __init__.py
 │   │   └── routes.py
 │   ├── capture/
 │   │   ├── live_capture.py
@@ -447,8 +449,12 @@ ai_ids_infra/
 │   ├── ai/
 │   │   └── ai_filter.py
 │   └── database/
+│       ├── __init__.py
+│       ├── db.py
 │       ├── models.py
-│       └── db.py
+│       └── crud.py
+├── data/
+│   └── ids.db
 ├── rules/
 │   ├── sql_injection_rules.json
 │   ├── xss_rules.json
@@ -467,7 +473,9 @@ ai_ids_infra/
 ├── tests/
 │   └── test_detection.py
 └── docs/
-    └── design.md
+    ├── design.md
+    ├── 总体设计报告模板.docx
+    └── 选题表模板.doc
 ```
 
 ## API 接口设计
@@ -566,6 +574,32 @@ GET /api/stats
 最近告警记录
 实时抓包任务状态
 pcap 分析任务状态
+```
+
+### 7. 清空开发测试数据
+
+```http
+POST /api/dev/reset-database
+```
+
+该接口用于清空 `tasks` 和 `alerts` 表中的数据，并保留数据库文件和表结构不变。为了避免误操作，请求体中必须显式传入 `confirm: true`。
+
+请求示例：
+
+```json
+{
+  "confirm": true
+}
+```
+
+响应示例：
+
+```json
+{
+  "status": "reset",
+  "deleted_alerts": 10,
+  "deleted_tasks": 3
+}
 ```
 
 ## WebUI 页面规划
@@ -680,6 +714,11 @@ WebUI 可以设计为以下几个主要页面或区域。
 ## 系统运行方式
 
 **待完善**
+- 安装依赖
+```
+pip install -r requirements.txt
+```
+
 
 
 ## TODO
