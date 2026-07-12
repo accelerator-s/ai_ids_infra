@@ -1,0 +1,90 @@
+[
+  {
+    "id": "cmdi-001",
+    "attack_type": "Command Injection",
+    "level": "high",
+    "score": 70,
+    "target_fields": ["query", "body"],
+    "patterns": [
+      "/bin/(bash|sh|zsh|csh)",
+      "/dev/tcp/",
+      "nc\\s+.*-[ep]",
+      "bash\\s+-i"
+    ],
+    "description": "反弹shell特征：/bin/bash、/dev/tcp、nc -e、bash -i，明确的攻击行为，直接告警"
+  },
+  {
+    "id": "cmdi-002",
+    "attack_type": "Command Injection",
+    "level": "high",
+    "score": 70,
+    "target_fields": ["query", "body"],
+    "patterns": [
+      "\\brm\\s+-",
+      "\\bchmod\\b",
+      "\\bchown\\b",
+      "\\bkill\\s+-",
+      "\\bshutdown\\b",
+      "\\bmkfs\\b"
+    ],
+    "description": "高危系统命令：rm、chmod、chown、kill、shutdown、mkfs，正常HTTP参数中不会出现"
+  },
+  {
+    "id": "cmdi-003",
+    "attack_type": "Command Injection",
+    "level": "high",
+    "score": 70,
+    "target_fields": ["query", "body"],
+    "patterns": [
+      "\\bpython\\s+-c",
+      "\\bperl\\s+-e",
+      "\\bruby\\s+-e",
+      "\\bphp\\s+-r"
+    ],
+    "description": "脚本语言命令执行：python -c、perl -e、ruby -e、php -r，正常请求不会出现"
+  },
+  {
+    "id": "cmdi-004",
+    "attack_type": "Command Injection",
+    "level": "medium",
+    "score": 35,
+    "target_fields": ["query", "body"],
+    "patterns": [
+      "\\bcat\\s+/etc/",
+      "\\bwhoami\\b",
+      "\\buname\\b",
+      "\\bcurl\\s+",
+      "\\bwget\\s+",
+      "\\bifconfig\\b",
+      "\\bnetstat\\b",
+      "base64\\s+(-d|--decode)"
+    ],
+    "description": "信息收集/网络命令：cat /etc/、whoami、uname、curl、wget、ifconfig、netstat、base64解码"
+  },
+  {
+    "id": "cmdi-005",
+    "attack_type": "Command Injection",
+    "level": "low",
+    "score": 20,
+    "target_fields": ["query", "body"],
+    "patterns": [
+      ";\\s*\\w+",
+      "\\|\\s*\\w+",
+      "&&\\s*\\w+",
+      "\\|\\|\\s*\\w+"
+    ],
+    "description": "命令连接符：分号、管道符、&&、||，正常URL/参数中也可能出现（如分号分隔符），仅作辅助加权"
+  },
+  {
+    "id": "cmdi-006",
+    "attack_type": "Command Injection",
+    "level": "medium",
+    "score": 30,
+    "target_fields": ["query", "body"],
+    "patterns": [
+      "`[^`]+`",
+      "\\$\\([^)]+\\)"
+    ],
+    "description": "命令替换语法：反引号包裹内容、$()命令替换，前端模板语法中偶有出现"
+  }
+]

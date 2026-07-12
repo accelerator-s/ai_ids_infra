@@ -737,7 +737,7 @@ pip install -r requirements.txt
    - 实现统一 API 路由结构。
    - 设计统一响应格式和错误处理方式。
 
-3. 实现 SQLite 数据存储模块
+3. ✅ 实现 SQLite 数据存储模块
    - 设计并创建 `tasks` 分析任务表。
    - 设计并创建 `alerts` 告警表。
    - 实现数据库初始化逻辑。

@@ -1,0 +1,81 @@
+[
+  {
+    "id": "sens-001",
+    "attack_type": "Sensitive File Access",
+    "level": "high",
+    "score": 70,
+    "target_fields": ["path"],
+    "patterns": [
+      "\\.git/config",
+      "\\.git/HEAD",
+      "\\.svn/entries",
+      "\\.hg/",
+      "\\.bzr/"
+    ],
+    "description": "版本控制目录探测：.git/config、.svn/entries等，正常用户不会访问，直接告警"
+  },
+  {
+    "id": "sens-002",
+    "attack_type": "Sensitive File Access",
+    "level": "high",
+    "score": 70,
+    "target_fields": ["path"],
+    "patterns": [
+      "\\.env",
+      "\\.DS_Store",
+      "wp-config\\.php",
+      "config\\.php",
+      "database\\.yml",
+      "settings\\.py"
+    ],
+    "description": "敏感配置文件探测：.env、wp-config.php、database.yml等，包含密钥/数据库凭据"
+  },
+  {
+    "id": "sens-003",
+    "attack_type": "Sensitive File Access",
+    "level": "high",
+    "score": 70,
+    "target_fields": ["path"],
+    "patterns": [
+      "\\.bak$",
+      "\\.swp$",
+      "\\.old$",
+      "\\.sql$",
+      "\\.dump$"
+    ],
+    "description": "备份/临时文件探测：.bak、.swp、.old、.sql、.dump后缀，正常网站不会暴露这类文件"
+  },
+  {
+    "id": "sens-004",
+    "attack_type": "Sensitive File Access",
+    "level": "medium",
+    "score": 35,
+    "target_fields": ["path"],
+    "patterns": [
+      "/admin",
+      "/manager",
+      "/phpmyadmin",
+      "/actuator",
+      "/swagger",
+      "/console"
+    ],
+    "description": "后台/管理路径探测：admin、phpmyadmin、actuator、swagger等，可能为正常管理员访问"
+  },
+  {
+    "id": "sens-005",
+    "attack_type": "Sensitive File Access",
+    "level": "medium",
+    "score": 30,
+    "target_fields": ["path"],
+    "patterns": [
+      "\\.(log|conf|ini|cfg)$",
+      "\\.tar\\.gz",
+      "\\.zip",
+      "debug",
+      "trace",
+      "/server-status",
+      "/server-info"
+    ],
+    "description": "日志/调试/压缩文件探测：.log/.conf/.ini、.tar.gz/.zip、debug路径、Apache状态页，正常流量可能出现"
+  }
+]

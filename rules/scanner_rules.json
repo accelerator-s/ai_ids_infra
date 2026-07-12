@@ -1,0 +1,81 @@
+[
+  {
+    "id": "scan-001",
+    "attack_type": "Web Scanner",
+    "level": "high",
+    "score": 70,
+    "target_fields": ["user_agent"],
+    "patterns": [
+      "sqlmap",
+      "nmap",
+      "nikto",
+      "nessus",
+      "openvas",
+      "w3af",
+      "acunetix",
+      "appscan",
+      "webscarab"
+    ],
+    "description": "已知安全扫描器User-Agent特征：sqlmap、nmap、nikto、nessus等，正常浏览器不会携带"
+  },
+  {
+    "id": "scan-002",
+    "attack_type": "Web Scanner",
+    "level": "high",
+    "score": 70,
+    "target_fields": ["user_agent"],
+    "patterns": [
+      "dirbuster",
+      "gobuster",
+      "ffuf",
+      "wfuzz",
+      "feroxbuster",
+      "dirb"
+    ],
+    "description": "目录爆破工具User-Agent特征：dirbuster、gobuster、ffuf等，明确的扫描行为"
+  },
+  {
+    "id": "scan-003",
+    "attack_type": "Web Scanner",
+    "level": "medium",
+    "score": 35,
+    "target_fields": ["user_agent"],
+    "patterns": [
+      "python-requests",
+      "python-urllib",
+      "java/",
+      "libcurl",
+      "wget",
+      "curl/"
+    ],
+    "description": "脚本/程序化访问User-Agent：python-requests、curl、wget等，可能是爬虫或自动化工具也可能是正常API调用"
+  },
+  {
+    "id": "scan-004",
+    "attack_type": "Web Scanner",
+    "level": "medium",
+    "score": 35,
+    "target_fields": ["user_agent"],
+    "patterns": [
+      "masscan",
+      "zgrab",
+      "censys",
+      "shodan"
+    ],
+    "description": "互联网资产测绘工具：masscan、zgrab、censys、shodan，大规模扫描探测行为"
+  },
+  {
+    "id": "scan-005",
+    "attack_type": "Web Scanner",
+    "level": "medium",
+    "score": 30,
+    "target_fields": ["user_agent", "headers"],
+    "patterns": [
+      "^$",
+      "^-$",
+      "\\{\\{",
+      "\\$\\{"
+    ],
+    "description": "异常User-Agent：空UA、模板语法注入UA（{{、${），可能为扫描器或攻击探测"
+  }
+]
