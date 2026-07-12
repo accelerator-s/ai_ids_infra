@@ -4,38 +4,90 @@
     "attack_type": "SQL Injection",
     "level": "high",
     "score": 70,
-    "target_fields": ["path", "query", "body"],
-    "patterns": [
-      "union\\s+select",
-      "\\bor\\b\\s+1\\s*=\\s*1",
-      "\\band\\b\\s+1\\s*=\\s*1"
-    ],
-    "description": "经典布尔/联合查询注入特征：union select、or 1=1、and 1=1"
-  },
-  {
-    "id": "sqli-002",
-    "attack_type": "SQL Injection",
-    "level": "high",
-    "score": 70,
     "target_fields": ["query", "body"],
     "patterns": [
       "sleep\\s*\\(",
       "benchmark\\s*\\(",
-      "waitfor\\s+delay"
+      "waitfor\\s+delay",
+      "extractvalue\\s*\\(",
+      "updatexml\\s*\\(",
+      "load_file\\s*\\(",
+      "information_schema",
+      "into\\s+outfile",
+      "into\\s+dumpfile"
     ],
-    "description": "基于时间的盲注特征：sleep()、benchmark()、waitfor delay"
+    "description": "SQL注入专用函数/关键词：时间盲注、报错注入、文件操作、系统表访问，正常流量不会出现"
+  },
+  {
+    "id": "sqli-002",
+    "attack_type": "SQL Injection",
+    "level": "medium",
+    "score": 35,
+    "target_fields": ["query", "body"],
+    "patterns": [
+      "\\bunion\\b",
+      "\\bdrop\\b",
+      "\\btruncate\\b",
+      "\\balter\\b"
+    ],
+    "description": "中危SQL关键词：union/drop/truncate/alter，正常HTTP参数中罕见"
   },
   {
     "id": "sqli-003",
     "attack_type": "SQL Injection",
     "level": "medium",
-    "score": 40,
+    "score": 25,
     "target_fields": ["query", "body"],
     "patterns": [
-      "(?:'|%27)\\s*(?:or|and)\\s",
+      "(?:'|%27)",
       "--\\s",
-      "/\\*.*\\*/"
+      "/\\*.*\\*/",
+      "#\\s",
+      ";\\s*\\w"
     ],
-    "description": "引号闭合、注释符等常见注入痕迹，误报率略高，定为 medium"
+    "description": "注入辅助符号：单引号、注释符(--/#/*...*/)、分号堆叠，单独出现可能误报"
+  },
+  {
+    "id": "sqli-004",
+    "attack_type": "SQL Injection",
+    "level": "low",
+    "score": 15,
+    "target_fields": ["query", "body"],
+    "patterns": [
+      "\\bselect\\b",
+      "\\binsert\\b",
+      "\\bupdate\\b",
+      "\\bdelete\\b"
+    ],
+    "description": "一般SQL操作关键词，可能出现在正常表单/参数中，仅作辅助加分"
+  },
+  {
+    "id": "sqli-005",
+    "attack_type": "SQL Injection",
+    "level": "low",
+    "score": 10,
+    "target_fields": ["query", "body"],
+    "patterns": [
+      "\\bor\\b",
+      "\\band\\b",
+      "\\bwhere\\b",
+      "\\bfrom\\b"
+    ],
+    "description": "高误报SQL关键词（常见英语单词），单独命中无意义，仅在多规则同时命中时辅助加权"
+  },
+  {
+    "id": "sqli-006",
+    "attack_type": "SQL Injection",
+    "level": "medium",
+    "score": 30,
+    "target_fields": ["query", "body"],
+    "patterns": [
+      "0x[0-9a-fA-F]{8,}",
+      "char\\s*\\(\\s*\\d+",
+      "unhex\\s*\\(",
+      "group_concat\\s*\\(",
+      "substr\\s*\\("
+    ],
+    "description": "编码绕过及SQL函数调用：十六进制、char()、unhex()、group_concat()、substr()"
   }
 ]

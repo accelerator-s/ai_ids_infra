@@ -1,0 +1,73 @@
+[
+  {
+    "id": "pt-001",
+    "attack_type": "Path Traversal",
+    "level": "high",
+    "score": 70,
+    "target_fields": ["path", "query", "body"],
+    "patterns": [
+      "\\.\\./\\.\\./\\.\\./",
+      "\\.\\.\\\\\\.\\.\\\\\\.\\.\\\\",
+      "%2[Ee]%2[Ee]/",
+      "%2[Ee]%2[Ee]\\\\",
+      "\\.%2[Ee]/",
+      "%2[Ee]\\.\\./"
+    ],
+    "description": "多层路径穿越：连续三层以上../或编码变体（%2e%2e/），明确的穿越攻击意图，直接告警"
+  },
+  {
+    "id": "pt-002",
+    "attack_type": "Path Traversal",
+    "level": "medium",
+    "score": 35,
+    "target_fields": ["path", "query", "body"],
+    "patterns": [
+      "\\.\\./",
+      "\\.\\.\\\\"
+    ],
+    "description": "单层../或..\\路径穿越，正常URL中偶尔出现（如相对路径引用），交由AI过滤"
+  },
+  {
+    "id": "pt-003",
+    "attack_type": "Path Traversal",
+    "level": "high",
+    "score": 70,
+    "target_fields": ["path", "query", "body"],
+    "patterns": [
+      "/etc/passwd",
+      "/etc/shadow",
+      "/etc/hosts",
+      "c:\\\\windows\\\\",
+      "c:/windows/"
+    ],
+    "description": "敏感系统文件绝对路径：/etc/passwd、/etc/shadow、c:\\windows等，正常请求不会访问"
+  },
+  {
+    "id": "pt-004",
+    "attack_type": "Path Traversal",
+    "level": "medium",
+    "score": 30,
+    "target_fields": ["path", "query", "body"],
+    "patterns": [
+      "/proc/self/",
+      "/proc/\\d+/",
+      "/var/log/",
+      "/tmp/"
+    ],
+    "description": "Linux系统目录访问：/proc/self、/var/log、/tmp，部分运维场景可能正常使用"
+  },
+  {
+    "id": "pt-005",
+    "attack_type": "Path Traversal",
+    "level": "medium",
+    "score": 25,
+    "target_fields": ["query", "body"],
+    "patterns": [
+      "file:///",
+      "php://filter",
+      "php://input",
+      "data://text"
+    ],
+    "description": "协议包装器：file:///本地文件读取、php://伪协议，某些框架参数中可能误报"
+  }
+]

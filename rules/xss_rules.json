@@ -1,0 +1,80 @@
+[
+  {
+    "id": "xss-001",
+    "attack_type": "XSS",
+    "level": "high",
+    "score": 70,
+    "target_fields": ["path", "query", "body"],
+    "patterns": [
+      "<script",
+      "</script"
+    ],
+    "description": "script标签注入，正常HTTP参数中不会出现，直接告警"
+  },
+  {
+    "id": "xss-002",
+    "attack_type": "XSS",
+    "level": "medium",
+    "score": 35,
+    "target_fields": ["query", "body"],
+    "patterns": [
+      "\\bon(error|load|click|mouseover|focus|blur|submit|change|keydown|keyup|input)\\s*="
+    ],
+    "description": "HTML事件处理器注入：onerror=/onload=/onclick=等，富文本场景可能误报"
+  },
+  {
+    "id": "xss-003",
+    "attack_type": "XSS",
+    "level": "high",
+    "score": 70,
+    "target_fields": ["path", "query", "body"],
+    "patterns": [
+      "javascript\\s*:",
+      "vbscript\\s*:"
+    ],
+    "description": "伪协议注入：javascript:/vbscript: 用于执行脚本，正常请求不会出现"
+  },
+  {
+    "id": "xss-004",
+    "attack_type": "XSS",
+    "level": "medium",
+    "score": 30,
+    "target_fields": ["query", "body"],
+    "patterns": [
+      "<iframe",
+      "<object",
+      "<embed",
+      "<svg"
+    ],
+    "description": "危险HTML标签：iframe/object/embed/svg，富文本提交场景可能出现，交由AI过滤"
+  },
+  {
+    "id": "xss-005",
+    "attack_type": "XSS",
+    "level": "high",
+    "score": 70,
+    "target_fields": ["query", "body"],
+    "patterns": [
+      "alert\\s*\\(",
+      "prompt\\s*\\(",
+      "confirm\\s*\\(",
+      "document\\.cookie",
+      "eval\\s*\\("
+    ],
+    "description": "JS危险函数：alert()/prompt()/confirm()弹窗、document.cookie窃取、eval()执行，正常参数不会出现"
+  },
+  {
+    "id": "xss-006",
+    "attack_type": "XSS",
+    "level": "medium",
+    "score": 25,
+    "target_fields": ["query", "body"],
+    "patterns": [
+      "%3[Cc]script",
+      "%3[Cc]svg",
+      "String\\.fromCharCode\\s*\\(",
+      "&#x[0-9a-fA-F]+;"
+    ],
+    "description": "编码绕过型XSS：URL编码标签、String.fromCharCode()转换、HTML十六进制实体，正常流量偶有出现"
+  }
+]
