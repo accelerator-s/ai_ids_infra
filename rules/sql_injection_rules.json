@@ -1,0 +1,41 @@
+[
+  {
+    "id": "sqli-001",
+    "attack_type": "SQL Injection",
+    "level": "high",
+    "score": 70,
+    "target_fields": ["path", "query", "body"],
+    "patterns": [
+      "union\\s+select",
+      "\\bor\\b\\s+1\\s*=\\s*1",
+      "\\band\\b\\s+1\\s*=\\s*1"
+    ],
+    "description": "经典布尔/联合查询注入特征：union select、or 1=1、and 1=1"
+  },
+  {
+    "id": "sqli-002",
+    "attack_type": "SQL Injection",
+    "level": "high",
+    "score": 70,
+    "target_fields": ["query", "body"],
+    "patterns": [
+      "sleep\\s*\\(",
+      "benchmark\\s*\\(",
+      "waitfor\\s+delay"
+    ],
+    "description": "基于时间的盲注特征：sleep()、benchmark()、waitfor delay"
+  },
+  {
+    "id": "sqli-003",
+    "attack_type": "SQL Injection",
+    "level": "medium",
+    "score": 40,
+    "target_fields": ["query", "body"],
+    "patterns": [
+      "(?:'|%27)\\s*(?:or|and)\\s",
+      "--\\s",
+      "/\\*.*\\*/"
+    ],
+    "description": "引号闭合、注释符等常见注入痕迹，误报率略高，定为 medium"
+  }
+]
