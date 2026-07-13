@@ -1,11 +1,18 @@
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database import crud
 from app.database.db import get_db
+from app.capture.pcap_analyzer import PcapAnalyzer
+from app.config import RULES_DIR
+from app.detection.rule_engine import RuleEngine
+from app.protocol.packet_parser import parse_http_request
 
 router = APIRouter(prefix="/api")
 
@@ -53,6 +60,20 @@ class ResetDatabaseRequest(BaseModel):
     """清空数据库测试数据的确认请求体。"""
 
     confirm: bool = False
+
+
+def _pcap_result_to_dict(result: Any) -> dict[str, Any]:
+    """将 pcap 分析结果转换为上传接口响应。"""
+    response = {
+        "task_id": result.task_id,
+        "status": result.status,
+        "total_packets": result.packet_count,
+        "http_requests": result.http_count,
+        "alerts": result.alert_count,
+    }
+    if result.error:
+        response["error"] = result.error
+    return response
 
 
 @router.get("/status")
@@ -114,6 +135,37 @@ def create_alert(request: AlertCreateRequest, db: Session = Depends(get_db)) -> 
     if alert is None:
         raise HTTPException(status_code=404, detail="Task not found")
     return crud.alert_to_dict(alert)
+
+
+@router.post("/pcap/analyze")
+async def analyze_pcap(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """接收 .pcap 文件并执行离线检测任务。"""
+    filename = file.filename or "upload.pcap"
+    if Path(filename).suffix.lower() != ".pcap":
+        raise HTTPException(status_code=400, detail="only .pcap files are supported")
+
+    with TemporaryDirectory(prefix="ai-ids-pcap-") as directory:
+        upload_path = Path(directory) / f"{uuid4().hex}.pcap"
+        total_size = 0
+        with upload_path.open("wb") as destination:
+            while chunk := await file.read(1024 * 1024):
+                total_size += len(chunk)
+                destination.write(chunk)
+
+        if total_size == 0:
+            raise HTTPException(status_code=400, detail="pcap file is empty")
+
+        analyzer = PcapAnalyzer(
+            db=db,
+            packet_parser=parse_http_request,
+            rule_engine=RuleEngine.from_dir(RULES_DIR),
+        )
+        result = analyzer.analyze(upload_path, task_target=filename)
+
+    return _pcap_result_to_dict(result)
 
 
 @router.get("/alerts")
