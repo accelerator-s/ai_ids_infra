@@ -254,7 +254,6 @@ User-Agent
     "User-Agent": "Mozilla/5.0"
   },
   "body": "",
-  "status": 200,
   "timestamp": "2026-07-08 10:00:00"
 }
 ```
