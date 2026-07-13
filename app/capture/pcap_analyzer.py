@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+from collections import defaultdict, deque
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -12,9 +14,11 @@ from sqlalchemy.orm import Session
 from app.database import crud
 from app.detection.risk_score import calculate_risk
 from app.detection.rule_engine import RuleEngine
+from app.protocol.packet_parser import get_tcp_stream_id, parse_http_response_status
 
 
 PacketParser = Callable[[Any], dict[str, Any] | None]
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -60,6 +64,8 @@ class PcapAnalyzer:
         packet_count = 0
         http_count = 0
         alert_count = 0
+        requests: list[dict[str, Any]] = []
+        pending_requests: dict[str, deque[dict[str, Any]]] = defaultdict(deque)
 
         try:
             if not path.is_file():
@@ -70,45 +76,34 @@ class PcapAnalyzer:
 
             try:
                 for packet in capture:
-                    # 所有数据包均计入总数，非 HTTP 包由解析器返回 None 跳过。
                     packet_count += 1
 
-                    request = self.packet_parser(packet)
-                    if request is None:
+                    try:
+                        request = self.packet_parser(packet)
+                        response_status = parse_http_response_status(packet)
+                        stream_id = get_tcp_stream_id(packet)
+                    except Exception as exc:
+                        logger.warning(
+                            "Skipping packet %d after parsing error: %s",
+                            packet_count,
+                            exc,
+                        )
                         continue
 
-                    http_count += 1
-                    matches = self.rule_engine.match(request)
-                    risk = calculate_risk(matches)
-
-                    if risk.level == "normal":
+                    if request is not None:
+                        http_count += 1
+                        requests.append(request)
+                        if stream_id is not None:
+                            pending_requests[stream_id].append(request)
                         continue
 
-                    attack_types = sorted(
-                        {match.attack_type for match in risk.matches}
-                    )
-                    matched_rules = [match.rule_id for match in risk.matches]
-                    reasons = [match.reason for match in risk.matches]
+                    if response_status is not None and stream_id is not None:
+                        waiting = pending_requests.get(stream_id)
+                        if waiting:
+                            waiting.popleft()["status"] = response_status
 
-                    alert = crud.create_alert(
-                        self.db,
-                        task_id=task.id,
-                        src_ip=str(request.get("src_ip", "")),
-                        dst_ip=str(request.get("dst_ip", "")),
-                        src_port=request.get("src_port"),
-                        dst_port=request.get("dst_port"),
-                        method=str(request.get("method", "")),
-                        path=str(request.get("path", "")),
-                        query=str(request.get("query", "")),
-                        attack_type=", ".join(attack_types) or "Unknown",
-                        risk_level=risk.level,
-                        score=risk.score,
-                        matched_rules=matched_rules,
-                        reason="；".join(reasons),
-                    )
-
-                    if alert is not None:
-                        alert_count += 1
+                for request in requests:
+                    alert_count += self._detect_request(task.id, request)
 
             finally:
                 capture.close()
@@ -152,3 +147,31 @@ class PcapAnalyzer:
                 alert_count=alert_count,
                 error=str(exc),
             )
+
+    def _detect_request(self, task_id: int, request: dict[str, Any]) -> int:
+        """将已完成状态关联的请求交给现有规则检测链。"""
+        matches = self.rule_engine.match(request)
+        risk = calculate_risk(matches)
+        if risk.level == "normal":
+            return 0
+
+        attack_types = sorted({match.attack_type for match in risk.matches})
+        matched_rules = [match.rule_id for match in risk.matches]
+        reasons = [match.reason for match in risk.matches]
+        alert = crud.create_alert(
+            self.db,
+            task_id=task_id,
+            src_ip=str(request.get("src_ip", "")),
+            dst_ip=str(request.get("dst_ip", "")),
+            src_port=request.get("src_port"),
+            dst_port=request.get("dst_port"),
+            method=str(request.get("method", "")),
+            path=str(request.get("path", "")),
+            query=str(request.get("query", "")),
+            attack_type=", ".join(attack_types) or "Unknown",
+            risk_level=risk.level,
+            score=risk.score,
+            matched_rules=matched_rules,
+            reason="；".join(reasons),
+        )
+        return int(alert is not None)
