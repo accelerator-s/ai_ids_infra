@@ -1,0 +1,78 @@
+/* 主题变量：明暗两套配色通过 [data-theme] 切换，图标继承 currentColor。 */
+
+:root {
+  --bg: #ffffff;
+  --bg-soft: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #f0f2f5;
+  --fg: #14181d;
+  --fg-soft: #5b6470;
+  --fg-faint: #8a94a1;
+  --border: #e2e6ec;
+  --border-strong: #cdd4dd;
+
+  --accent: #35608f;
+  --accent-strong: #294b70;
+  --accent-soft: #e5edf6;
+  --accent-fg: #ffffff;
+
+  --danger: #c2483b;
+  --danger-soft: #f7e4e1;
+  --safe: #2f8f5b;
+  --safe-soft: #e2f1e8;
+  --warn: #b87920;
+  --warn-soft: #f8eedc;
+  --pending: #5a94cc;
+  --pending-soft: #e9f1f9;
+
+  --level-critical: #a03028;
+  --level-high: #c2483b;
+  --level-medium: #b87920;
+  --level-low: #35608f;
+  --level-normal: #2f8f5b;
+
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-lg: 18px;
+  --shadow: 0 1px 2px rgba(16, 24, 33, 0.06), 0 8px 24px rgba(16, 24, 33, 0.06);
+  --shadow-soft: 0 1px 3px rgba(16, 24, 33, 0.05);
+
+  --rail-w: 240px;
+  --dur: 220ms;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+[data-theme="dark"] {
+  --bg: #000000;
+  --bg-soft: #0b0e12;
+  --surface: #0d1116;
+  --surface-2: #151b22;
+  --fg: #f2f4f7;
+  --fg-soft: #aab3bf;
+  --fg-faint: #6b7682;
+  --border: #232a32;
+  --border-strong: #333c46;
+
+  --accent: #7aa9dc;
+  --accent-strong: #97bde8;
+  --accent-soft: #14212f;
+  --accent-fg: #06121e;
+
+  --danger: #ed7468;
+  --danger-soft: #2a1614;
+  --safe: #5fc78c;
+  --safe-soft: #13241b;
+  --warn: #e0a44d;
+  --warn-soft: #2b2112;
+  --pending: #8fbde9;
+  --pending-soft: #142230;
+
+  --level-critical: #f08c82;
+  --level-high: #ed7468;
+  --level-medium: #e0a44d;
+  --level-low: #7aa9dc;
+  --level-normal: #5fc78c;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 32px rgba(0, 0, 0, 0.55);
+  --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.45);
+}

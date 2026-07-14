@@ -1,0 +1,167 @@
+.pcap {
+  width: 100%;
+  max-width: 1180px;
+}
+
+.pcap__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 320px);
+  gap: 18px;
+  align-items: start;
+}
+
+.pcap__col {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+
+.pcap__main,
+.pcap__tasks {
+  padding: 24px 26px;
+  animation: paneIn var(--dur) var(--ease);
+}
+
+.pcap__form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pcap__drop {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 34px 20px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg-soft);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+
+.pcap__drop:hover,
+.pcap__drop.is-over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.pcap__drop .icon {
+  width: 28px;
+  height: 28px;
+  color: var(--pending);
+}
+
+.pcap__drop strong {
+  font-size: 0.92rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pcap__drop span:last-child {
+  color: var(--fg-faint);
+  font-size: 0.8rem;
+}
+
+.pcap__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.pcap__busy {
+  display: flex;
+  align-items: center;
+}
+
+.pcap__msg {
+  font-size: 0.84rem;
+}
+
+.pcap__msg.is-ok {
+  color: var(--safe);
+}
+
+.pcap__msg.is-err {
+  color: var(--danger);
+}
+
+.pcap__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.pcap__table th,
+.pcap__table td {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.pcap__table th {
+  color: var(--fg-soft);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.pcap__table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.pcap__table tbody tr:hover {
+  background: var(--bg-soft);
+}
+
+.pcap__aside {
+  display: grid;
+  gap: 14px;
+}
+
+.pcap__aside-card {
+  padding: 19px 20px;
+  animation: paneIn var(--dur) var(--ease);
+}
+
+.pcap__aside-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 10px;
+}
+
+.pcap__aside-head .icon {
+  width: 18px;
+  height: 18px;
+  color: var(--pending);
+}
+
+.pcap__aside-head h3 {
+  font-size: 0.95rem;
+}
+
+.pcap__aside-card p,
+.pcap__aside-card li {
+  color: var(--fg-soft);
+  font-size: 0.82rem;
+  line-height: 1.65;
+}
+
+.pcap__aside-card ol {
+  margin: 12px 0 0;
+  padding-left: 20px;
+}
+
+@media (max-width: 980px) {
+  .pcap__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

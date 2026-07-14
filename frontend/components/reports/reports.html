@@ -1,0 +1,50 @@
+<section class="reports">
+  <div class="reports__layout">
+    <div class="reports__main card">
+      <h3 class="section-title"><span class="icon" data-icon="robot"></span>评测报告</h3>
+      <p class="section-sub">对已完成的分析任务做汇总研判，输出风险概述和处置建议。</p>
+
+      <div class="reports__gate" data-gate></div>
+
+      <div class="reports__ui" data-ui hidden>
+        <form class="reports__generate" data-generate>
+          <div class="reports__generate-field">
+            <label class="field-label" for="report-task">选择分析任务</label>
+            <select class="select" id="report-task" data-task-select></select>
+          </div>
+          <button class="btn btn--primary" type="submit" data-generate-btn>
+            <span class="icon" data-icon="send"></span>生成报告
+          </button>
+          <span class="reports__busy" data-busy hidden><span class="spinner"></span></span>
+          <span class="reports__msg" data-msg hidden></span>
+        </form>
+
+        <div class="reports__list" data-list></div>
+      </div>
+    </div>
+
+    <aside class="reports__aside">
+      <article class="reports__aside-card card">
+        <div class="reports__aside-head">
+          <span class="icon" data-icon="bulb"></span>
+          <h3>模块能力</h3>
+        </div>
+        <p>AI 评测报告模块落地后，本页面将支持：</p>
+        <ol>
+          <li>选择已完成的分析任务生成报告</li>
+          <li>汇总攻击类型、风险分布和高危来源</li>
+          <li>调用大模型输出风险概述与处置建议</li>
+          <li>查看和回溯历史报告</li>
+        </ol>
+      </article>
+
+      <article class="reports__aside-card reports__aside-card--soft card">
+        <div class="reports__aside-head">
+          <span class="icon" data-icon="wrench"></span>
+          <h3>前置条件</h3>
+        </div>
+        <p>报告生成依赖系统配置页中的大模型接入参数，请先完成配置并测试连通。</p>
+      </article>
+    </aside>
+  </div>
+</section>

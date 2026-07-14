@@ -158,22 +158,19 @@ pcap 离线分析流程：
 
 WebUI 是系统的主要操作入口，用于完成抓包配置、pcap 分析、结果查看和数据可视化。
 
-主要功能：
+页面结构：
 
-**待完善**
 ```text
-配置实时抓包任务
-输入目标 IP 或域名
-选择监听网卡和过滤条件
-启动、停止抓包分析任务
-上传或选择 pcap 文件进行离线分析
-查看告警列表和告警详情
-查看攻击类型分布图
-查看风险等级统计图
-查看高频攻击 IP 排行
-查看最近检测记录
-生成和查看 AI 评测报告
+总览：模块就绪度、告警统计、攻击类型 / 风险等级分布、高频来源 IP、最近告警
+实时抓包：网卡选择、目标 IP / 域名配置、任务启停（等待抓包模块落地）
+离线分析：pcap 上传、分析任务列表（等待分析模块落地）
+告警中心：按攻击类型 / 风险等级 / 来源 IP 筛选，查看命中规则和检测原因
+AI 报告：选择任务生成评测报告、查看历史报告（等待报告模块落地）
+系统配置：服务端口、大模型接入参数（OpenAI 兼容接口）
 ```
+
+页面已全部完成，不使用模拟数据：依赖后端模块的操作在模块落地前
+会根据后端返回的 501 状态显示"模块待实现"提示，模块实现后自动启用。
 
 ### 2. 后端 API 服务模块
 
@@ -181,17 +178,16 @@ WebUI 是系统的主要操作入口，用于完成抓包配置、pcap 分析、
 
 主要功能：
 
-**待完善**
 ```text
-提供实时抓包任务启动接口
-提供实时抓包任务停止接口
-提供 pcap 文件上传和分析接口
-提供告警列表查询接口
-提供告警详情查询接口
-提供攻击统计查询接口
-提供 AI 评测报告生成和查询接口
-提供系统运行状态查询接口
+系统状态查询：汇报各模块就绪情况，模块文件落地后自动检测
+运行配置读写：服务端口、大模型参数，保存在数据库 settings 表
+大模型接入：模型列表拉取、连通测试（OpenAI 兼容协议）
+任务与告警：创建、更新、筛选查询
+统计汇总：攻击类型 / 风险等级分布、高频来源 IP、最近告警
+待实现模块占位：抓包、离线分析、AI 报告接口统一返回 501
 ```
+
+路由定义和请求示例统一维护在仓库根目录的 [API.md](API.md)。
 
 ### 3. 实时流量采集模块
 
@@ -236,7 +232,6 @@ pcap 离线分析模块负责读取已有流量包文件，并对其中的数据
 
 主要解析内容：
 
-**待完善**
 ```text
 源 IP
 目的 IP
@@ -325,7 +320,6 @@ User-Agent
 
 示例规则：
 
-**待完善**
 ```text
 同一 IP 在 60 秒内请求超过 100 次，标记为疑似高频访问。
 同一 IP 在 5 分钟内登录失败超过 10 次，标记为疑似暴力破解。
@@ -348,7 +342,6 @@ User-Agent
 
 评分参考：
 
-**待完善**
 ```text
 命中高危规则：+70
 命中中危规则：+40
@@ -477,307 +470,142 @@ AI 研判原因
 
 ## 技术栈
 
-**待完善**
 | 模块 | 实现方式 |
 | --- | --- |
-| 后端服务 | Python FastAPI |
-| 抓包以及流量解析 | PyShark |
+| 后端服务 | Python FastAPI + Uvicorn |
+| 抓包以及流量解析 | PyShark（抓包模块落地后使用） |
 | 规则检测 | Python 正则表达式 + JSON 规则库 |
 | 行为统计 | Python 时间窗口统计 |
-| 数据存储 | SQLite |
-| AI 辅助研判与评测报告 | 大模型 API + JSON 结构化输出 |
-| 前端框架 | Vue / HTML + CSS + JavaScript |
-| 可视化图表 | ECharts |
+| 数据存储 | SQLite + SQLAlchemy |
+| 运行配置 | WebUI 配置面板 + settings 表（不使用 .env 等配置文件） |
+| AI 辅助研判与评测报告 | OpenAI 兼容大模型 API + JSON 结构化输出 |
+| 前端 | 原生 HTML + CSS + JavaScript（ES Modules 组件化，无构建步骤） |
+| 可视化图表 | 自绘 CSS / SVG 图表 |
 | 测试流量 | HTTP 明文 pcap 样本 |
 
 ## 项目框架
 
+带（待实现）标注的文件尚未创建，`/api/status` 会按文件是否存在自动汇报模块就绪情况。
+
 ```text
 ai_ids_infra/
 ├── README.md
+├── API.md                          # 后端路由定义与待实现标记
 ├── requirements.txt
 ├── app/
-│   ├── __init__.py
-│   ├── main.py
-│   ├── config.py
+│   ├── main.py                     # 服务入口：python -m app.main
+│   ├── config.py                   # 路径、风险阈值和配置默认值
 │   ├── api/
-│   │   ├── __init__.py
-│   │   └── routes.py
+│   │   └── routes.py               # 全部 API 路由
+│   ├── services/
+│   │   └── llm.py                  # OpenAI 兼容接口客户端
 │   ├── capture/
-│   │   ├── live_capture.py
-│   │   └── pcap_analyzer.py
+│   │   ├── live_capture.py         # （待实现）实时抓包
+│   │   └── pcap_analyzer.py        # （待实现）pcap 离线分析
 │   ├── protocol/
-│   │   ├── packet_parser.py
-│   │   └── http_parser.py
+│   │   └── packet_parser.py        # （待实现）协议解析
 │   ├── detection/
-│   │   ├── rule_engine.py
-│   │   ├── behavior_detector.py
-│   │   └── risk_score.py
+│   │   ├── rule_engine.py          # 规则检测
+│   │   ├── risk_score.py           # 风险评分
+│   │   └── behavior_detector.py    # （待实现）行为检测
 │   ├── ai/
-│   │   ├── request_analyzer.py
-│   │   └── report_generator.py
+│   │   ├── request_analyzer.py     # （待实现）AI 辅助研判
+│   │   └── report_generator.py     # （待实现）AI 评测报告
 │   └── database/
-│       ├── __init__.py
-│       ├── db.py
-│       ├── models.py
-│       └── crud.py
+│       ├── db.py                   # 引擎与会话
+│       ├── models.py               # tasks / alerts / settings 表
+│       └── crud.py                 # 增删改查与统计
 ├── data/
-│   ├── ids.db
-│   └── reports/
-├── rules/
+│   └── ids.db                      # SQLite 数据库（首次启动自动创建）
+├── rules/                          # 六类攻击的 JSON 规则库
 │   ├── sql_injection_rules.json
 │   ├── xss_rules.json
 │   ├── command_injection_rules.json
 │   ├── path_traversal_rules.json
 │   ├── sensitive_path_rules.json
 │   └── scanner_rules.json
-├── frontend/
+├── frontend/                       # WebUI，由后端静态托管
 │   ├── index.html
-│   ├── css/
-│   │   └── style.css
-│   └── js/
-│       └── dashboard.js
-├── pcaps/
-│   └── sample_http_attack.pcap
-├── tests/
-│   └── test_detection.py
+│   ├── app.js                      # 组件装载、路由与健康轮询
+│   ├── core/                       # 主题、API 封装、事件总线、图标
+│   ├── components/                 # 每页面一个组件目录（html + js + css）
+│   │   ├── rail/  topbar/  state-card/
+│   │   ├── overview/  capture/  pcap/
+│   │   └── alerts/  reports/  config/
+│   └── resources/icons/            # 内联 SVG 图标
 └── docs/
-    ├── design.md
     ├── 总体设计报告模板.docx
-    └── 选题表模板.doc
+    └── 选题表.doc
 ```
 
 ## API 接口设计
 
-### 1. 启动实时抓包分析
+接口定义、请求响应示例和待实现标记统一维护在 [API.md](API.md)，
+路由实现见 `app/api/routes.py`，两者保持同步。
 
-```http
-POST /api/capture/start
-```
+- 已可用：系统状态、运行配置、大模型连通、任务、告警、统计、开发辅助。
+- 待实现（返回 501 与结构化错误）：实时抓包、pcap 离线分析、AI 评测报告。
 
-请求示例：
+## WebUI 页面
 
-```json
-{
-  "interface": "eth0",
-  "target_type": "domain",
-  "target": "example.com",
-  "port": 80
-}
-```
+WebUI 已实现六个页面，通过左侧导航切换，支持明暗主题。
 
-响应示例：
-
-```json
-{
-  "task_id": "capture-001",
-  "status": "running",
-  "resolved_ips": ["93.184.216.34"],
-  "filter": "host 93.184.216.34 and tcp port 80"
-}
-```
-
-### 2. 停止实时抓包分析
-
-```http
-POST /api/capture/stop
-```
-
-请求示例：
-
-```json
-{
-  "task_id": "capture-001"
-}
-```
-
-### 3. 上传 pcap 文件并分析
-
-```http
-POST /api/pcap/analyze
-```
-
-请求内容：
+### 1. 总览
 
 ```text
-multipart/form-data 上传 .pcap 文件
+模块就绪度环形图与九个模块的就绪状态
+告警总数、分析任务数、高危及以上告警数、已加载规则数
+攻击类型分布、风险等级分布、高频来源 IP
+最近告警列表，可跳转告警中心
 ```
 
-响应示例：
-
-```json
-{
-  "task_id": "pcap-001",
-  "status": "completed",
-  "total_packets": 1200,
-  "http_requests": 86,
-  "alerts": 12
-}
-```
-
-### 4. 查询告警列表
-
-```http
-GET /api/alerts
-```
-
-### 5. 查询告警详情
-
-```http
-GET /api/alerts/{alert_id}
-```
-
-### 6. 查询统计信息
-
-```http
-GET /api/stats
-```
-
-统计信息包括：
-
-```text
-告警总数
-攻击类型分布
-风险等级分布
-高频来源 IP
-最近告警记录
-实时抓包任务状态
-pcap 分析任务状态
-```
-
-### 7. 生成 AI 评测报告
-
-```http
-POST /api/reports/generate
-```
-
-请求示例：
-
-```json
-{
-  "task_id": "pcap-001",
-  "model": "model-name",
-  "prompt_version": "v1"
-}
-```
-
-响应示例：
-
-```json
-{
-  "report_id": "report-001",
-  "task_id": "pcap-001",
-  "status": "generating"
-}
-```
-
-### 8. 查询 AI 评测报告
-
-```http
-GET /api/reports/{report_id}
-```
-
-报告生成完成后返回任务概况、风险评估、主要发现、处置建议、模型名称和 Prompt 版本。
-
-### 9. 清空开发测试数据
-
-```http
-POST /api/dev/reset-database
-```
-
-该接口用于清空 `tasks` 和 `alerts` 表中的数据，并保留数据库文件和表结构不变。为了避免误操作，请求体中必须显式传入 `confirm: true`。
-
-请求示例：
-
-```json
-{
-  "confirm": true
-}
-```
-
-响应示例：
-
-```json
-{
-  "status": "reset",
-  "deleted_alerts": 10,
-  "deleted_tasks": 3
-}
-```
-
-## WebUI 页面规划
-
-**待完善**
-
-WebUI 可以设计为以下几个主要页面或区域。
-
-### 1. 首页仪表盘
-
-```text
-展示系统运行状态
-展示告警总数
-展示高危告警数量
-展示攻击类型分布图
-展示风险等级分布图
-展示最近告警列表
-```
-
-### 2. 实时抓包页面
+### 2. 实时抓包
 
 ```text
 选择监听网卡
 输入目标 IP 或域名
 选择端口，默认 HTTP 80
-启动抓包任务
-停止抓包任务
-查看实时检测结果
+启动、停止抓包任务
+抓包模块未实现时展示待实现提示，模块落地后自动启用
 ```
 
-### 3. pcap 分析页面
+### 3. 离线分析
 
 ```text
-上传 pcap 文件
-启动离线分析
-查看分析进度
-展示分析结果摘要
-跳转到告警详情
+上传 pcap 文件并启动分析
+查看分析任务列表和进度
+分析模块未实现时展示待实现提示
 ```
 
-### 4. 告警中心页面
+### 4. 告警中心
 
 ```text
-查看告警列表
-按攻击类型筛选
-按风险等级筛选
-按源 IP 筛选
+按攻击类型、风险等级、源 IP 筛选，分页浏览
 查看单条告警详情
 查看命中规则、检测原因和 AI 辅助研判结果
 ```
 
-### 5. 统计分析页面
+### 5. AI 评测报告
 
 ```text
-攻击类型统计
-风险等级统计
-高频攻击 IP 排行
-请求量趋势
-告警时间趋势
+选择已完成的分析任务生成报告
+查看历史报告
+报告模块未实现时展示待实现提示
 ```
 
-### 6. AI 评测报告页面
+### 6. 系统配置
 
 ```text
-选择已完成的实时抓包或 pcap 分析任务
-配置模型和 Prompt 版本
-生成报告并查看进度
-查看任务概况和整体风险评估
-查看主要威胁和处置建议
-查看历史报告
+服务端口配置（保存在数据库，重启服务生效）
+大模型服务地址、访问密钥、模型选择和生成随机度
+获取模型列表、测试连通后保存
 ```
 
 ## 数据库设计
 
-可以使用 SQLite 保存任务、告警、AI 辅助研判记录、统计数据和 AI 评测报告。
+使用 SQLite 保存任务、告警和运行配置，首次启动自动建表。
+`alerts`、`tasks`、`settings` 三张表已创建；`ai_reviews` 和 `reports`
+为 AI 模块预留的设计，模块落地时一并创建。
 
 ### alerts 告警表
 
@@ -815,7 +643,14 @@ WebUI 可以设计为以下几个主要页面或区域。
 | created_at | 创建时间 |
 | finished_at | 结束时间 |
 
-### ai_reviews AI 辅助研判记录表
+### settings 运行配置表
+
+| 字段 | 说明 |
+| --- | --- |
+| key | 配置项键名，如 `server.port`、`llm.base_url` |
+| value | JSON 编码后的配置值 |
+
+### ai_reviews AI 辅助研判记录表（预留）
 
 | 字段 | 说明 |
 | --- | --- |
@@ -832,7 +667,7 @@ WebUI 可以设计为以下几个主要页面或区域。
 | status | 研判或人工复核状态 |
 | created_at | 创建时间 |
 
-### reports AI 评测报告表
+### reports AI 评测报告表（预留）
 
 | 字段 | 说明 |
 | --- | --- |
@@ -850,35 +685,44 @@ WebUI 可以设计为以下几个主要页面或区域。
 
 ## 系统环境依赖
 
-**待完善**
-
-1. 本项目使用 PyShark 进行流量抓取和 pcap 文件解析。PyShark 依赖 tshark，因此运行项目前需要先安装 Wireshark，并确保tshark 命令可在终端中使用。安装完成后，可以通过以下命令验证：
+1. Python 3.10 及以上，依赖见 `requirements.txt`。
+2. 抓包和 pcap 解析使用 PyShark，依赖 tshark。这两个模块尚未实现，
+   当前运行核心服务不需要安装；实现落地后需先安装 Wireshark 并确认
+   `tshark` 命令可用：
 
 ```bash
-  tshark -v
+tshark -v
 ```
-如果能够输出 tshark 版本信息，则说明环境配置成功。
 
 ## 系统运行方式
 
-**待完善**
-- 安装依赖
-```
-pip install -r requirements.txt
+```bash
+# 安装依赖
+.venv/bin/pip install -r requirements.txt
+
+# 启动服务（默认 127.0.0.1，端口读取数据库配置，初始为 8000）
+python -m app.main
+
+# 或者临时指定监听地址和端口
+python -m app.main --host 0.0.0.0 --port 8080
 ```
 
+启动后浏览器访问 `http://127.0.0.1:8000` 打开 WebUI。
 
+所有运行配置（服务端口、大模型接入参数）都在 WebUI 的"系统配置"页
+修改，保存在 SQLite 的 `settings` 表中，项目不使用 .env 或其他配置
+文件。端口修改需要重启服务进程才会生效。
 
 ## TODO
 
 > 进度标记：✅ 已完成 · 🟡 进行中 · 未标记为待办
 
-1. 搭建基础项目结构
+1. ✅ 搭建基础项目结构
    - 创建后端目录、前端目录、规则库目录、pcap 样本目录和测试目录。
    - 配置 `requirements.txt`，明确 Python 依赖。
    - 编写基础配置文件，集中管理数据库路径、规则目录、pcap 保存目录、AI 配置和风险阈值。
 
-2. 实现后端 FastAPI 基础服务
+2. ✅ 实现后端 FastAPI 基础服务
    - 创建 FastAPI 应用入口。
    - 挂载前端静态页面。
    - 实现系统状态检查接口。
@@ -913,8 +757,8 @@ pip install -r requirements.txt
    - 统一输出结构化 HTTP 请求对象，供规则检测和行为检测模块使用。
    - 处理无法解析、字段缺失或非 HTTP 数据包的情况。
 
-7. 🟡 建立 8 类攻击规则特征库（进行中：SQL 注入进行中，规则文件格式已确定，其余类别待补）
-   - 🟡 编写 SQL 注入规则文件。
+7. ✅ 建立攻击规则特征库（6 类规则文件已就绪，后续按需扩充规则条目）
+   - 编写 SQL 注入规则文件。
    - 编写 XSS 攻击规则文件。
    - 编写命令注入规则文件。
    - 编写路径遍历规则文件。
@@ -939,7 +783,7 @@ pip install -r requirements.txt
    - 实现大量 404 响应检测。
    - 实现 Web 扫描器行为检测。
 
-10. 实现风险评分模块
+10. ✅ 实现风险评分模块
     - 根据规则检测结果计算基础风险分。
     - 根据行为检测结果调整风险分。
     - 输出 `low`、`medium`、`high`、`critical` 风险等级。
@@ -962,14 +806,14 @@ pip install -r requirements.txt
     - 保存报告内容、模型名称和 Prompt 版本。
     - 处理 AI 调用超时、输出格式错误和报告生成失败的情况。
 
-13. 实现告警生成与查询模块
+13. ✅ 实现告警生成与查询模块
     - 根据检测结果生成告警记录。
     - 保存攻击类型、风险等级、命中规则、检测原因和 AI 辅助研判结果。
     - 实现告警列表查询。
     - 实现告警详情查询。
     - 支持按攻击类型、风险等级、源 IP 和任务 ID 筛选告警。
 
-14. 实现统计分析接口
+14. ✅ 实现统计分析接口
     - 统计告警总数。
     - 统计不同攻击类型数量。
     - 统计不同风险等级数量。
@@ -977,15 +821,15 @@ pip install -r requirements.txt
     - 统计最近告警记录。
     - 统计不同任务的分析结果。
 
-15. 实现 WebUI 页面
-    - 实现首页仪表盘。
+15. ✅ 实现 WebUI 页面
+    - 实现首页仪表盘（含统计分析图表）。
     - 实现实时抓包配置页面。
     - 实现 pcap 文件上传与分析页面。
     - 实现告警中心页面。
-    - 实现统计分析页面。
     - 实现 AI 评测报告页面。
-    - 调用后端 API 获取数据。
-    - 使用 ECharts 展示攻击类型分布、风险等级分布、请求趋势和高频 IP 排行。
+    - 实现系统配置页面（端口与大模型接入）。
+    - 调用后端 API 获取数据，未实现模块展示待实现提示。
+    - 使用自绘 CSS/SVG 图表展示攻击类型分布、风险等级分布和高频 IP 排行。
 
 16. 准备测试流量和演示数据
     - 准备 HTTP 明文 pcap 流量样本。
@@ -1008,7 +852,7 @@ pip install -r requirements.txt
     - 测试 AI 调用失败时是否会保留原有检测结果。
     - 测试 API 接口返回格式是否正确。
 
-18. 完善运行文档和环境说明
+18. 🟡 完善运行文档和环境说明（依赖安装、服务启动、WebUI 访问已覆盖；抓包与离线分析用法待模块落地后补充）
     - 说明 Python 依赖安装方式。
     - 说明 Wireshark / tshark 安装要求。
     - 说明如何启动后端服务。

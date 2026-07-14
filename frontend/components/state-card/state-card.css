@@ -1,0 +1,155 @@
+.state-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 32px 24px;
+  border-radius: var(--radius);
+  border: 1px dashed var(--border-strong);
+  background: var(--surface);
+  animation: stateIn var(--dur) var(--ease);
+}
+
+.state-card__icon {
+  width: 34px;
+  height: 34px;
+  color: var(--fg-faint);
+}
+
+.state-card__title {
+  font-size: 0.96rem;
+  font-weight: 650;
+  color: var(--fg);
+}
+
+.state-card__detail {
+  font-size: 0.85rem;
+  color: var(--fg-soft);
+  max-width: 52ch;
+  line-height: 1.6;
+}
+
+.state-card__retry {
+  margin-top: 6px;
+}
+
+.state-card__tag {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+/* ---- 加载中 ---- */
+
+.state-card--loading {
+  border-style: solid;
+  border-color: var(--border);
+}
+
+.state-card--loading .state-card__icon {
+  color: var(--pending);
+  animation: spin 1.4s linear infinite;
+}
+
+.state-card__shimmer {
+  width: min(280px, 70%);
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 0%,
+    color-mix(in srgb, var(--accent) 35%, var(--surface-2)) 50%,
+    var(--surface-2) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+
+/* ---- 出错 ---- */
+
+.state-card--error {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+  background: color-mix(in srgb, var(--danger-soft) 60%, var(--surface));
+  animation: stateIn var(--dur) var(--ease), shake 420ms var(--ease);
+}
+
+.state-card--error .state-card__icon {
+  color: var(--danger);
+  animation: statePulseError 1.6s var(--ease) infinite;
+}
+
+.state-card--error .state-card__title {
+  color: var(--danger);
+}
+
+/* ---- 待实现 ---- */
+
+.state-card--pending {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--pending) 35%, transparent);
+  background: color-mix(in srgb, var(--pending-soft) 40%, var(--surface));
+}
+
+.state-card--pending .state-card__icon {
+  color: var(--pending);
+}
+
+.state-card--pending .state-card__tag {
+  background: var(--pending-soft);
+  color: var(--pending);
+}
+
+@keyframes stateIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-7px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes statePulseError {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}

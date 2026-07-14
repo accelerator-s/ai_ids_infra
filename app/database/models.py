@@ -24,6 +24,15 @@ class Task(Base):
     alerts: Mapped[list["Alert"]] = relationship(back_populates="task")
 
 
+class Setting(Base):
+    """配置表，保存 WebUI 面板里修改的运行配置，value 存 JSON 编码后的值。"""
+
+    __tablename__ = "settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, default="")
+
+
 class Alert(Base):
     """告警表，保存规则检测、行为检测和 AI 判断后的风险结果。"""
 
