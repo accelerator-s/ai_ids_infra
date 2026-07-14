@@ -14,3 +14,12 @@ DEFAULT_RISK_THRESHOLDS = {
     "high": 70,
     "critical": 90,
 }
+
+# WebUI 面板可修改的运行配置，保存在 settings 表中，缺省时取这里的值
+DEFAULT_SETTINGS = {
+    "server.port": 8000,
+    "llm.base_url": "",
+    "llm.api_key": "",
+    "llm.model": "",
+    "llm.temperature": 0.2,
+}

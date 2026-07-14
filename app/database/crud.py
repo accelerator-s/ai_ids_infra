@@ -6,11 +6,39 @@ from typing import Any
 from sqlalchemy import desc, func, text
 from sqlalchemy.orm import Session
 
-from app.database.models import Alert, Task
+from app.config import DEFAULT_SETTINGS
+from app.database.models import Alert, Setting, Task
 
 
 def _json_dumps(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False)
+
+
+def get_settings(db: Session) -> dict[str, Any]:
+    """读取全部运行配置，数据库中没有的键回落到默认值。"""
+    settings = dict(DEFAULT_SETTINGS)
+    for row in db.query(Setting).all():
+        if row.key not in DEFAULT_SETTINGS:
+            continue
+        try:
+            settings[row.key] = json.loads(row.value)
+        except json.JSONDecodeError:
+            settings[row.key] = row.value
+    return settings
+
+
+def save_settings(db: Session, values: dict[str, Any]) -> dict[str, Any]:
+    """写入运行配置，只接受默认值表里已知的键。"""
+    for key, value in values.items():
+        if key not in DEFAULT_SETTINGS:
+            continue
+        row = db.get(Setting, key)
+        if row is None:
+            row = Setting(key=key)
+            db.add(row)
+        row.value = _json_dumps(value)
+    db.commit()
+    return get_settings(db)
 
 
 def create_task(db: Session, task_type: str, target: str = "", status: str = "pending") -> Task:

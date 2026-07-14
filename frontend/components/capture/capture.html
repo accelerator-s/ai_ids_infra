@@ -1,0 +1,69 @@
+<section class="capture">
+  <div class="capture__layout">
+    <div class="capture__main card">
+      <h3 class="section-title"><span class="icon" data-icon="radar"></span>抓包任务</h3>
+      <p class="section-sub">选择监听网卡和目标，在线解析目标的 HTTP 明文流量并执行规则检测。</p>
+
+      <div class="capture__gate" data-gate></div>
+
+      <form class="capture__form" data-form hidden>
+        <div class="capture__grid">
+          <div>
+            <label class="field-label" for="cap-iface">监听网卡</label>
+            <select class="select" id="cap-iface" data-iface></select>
+          </div>
+          <div>
+            <label class="field-label" for="cap-type">目标类型</label>
+            <select class="select" id="cap-type" data-target-type>
+              <option value="ip">IP 地址</option>
+              <option value="domain">域名</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label" for="cap-target">目标</label>
+            <input class="input" id="cap-target" data-target type="text" placeholder="如 192.168.1.10 或 example.com" />
+          </div>
+          <div>
+            <label class="field-label" for="cap-port">端口</label>
+            <input class="input" id="cap-port" data-port type="number" min="1" max="65535" value="80" />
+          </div>
+        </div>
+
+        <div class="capture__actions">
+          <button class="btn btn--primary" type="submit" data-start>
+            <span class="icon" data-icon="radar"></span>开始抓包
+          </button>
+          <button class="btn btn--ghost" type="button" data-stop disabled>停止抓包</button>
+          <span class="capture__busy" data-busy hidden><span class="spinner"></span></span>
+          <span class="capture__msg" data-msg hidden></span>
+        </div>
+
+        <div class="capture__task" data-task hidden></div>
+      </form>
+    </div>
+
+    <aside class="capture__aside">
+      <article class="capture__aside-card card">
+        <div class="capture__aside-head">
+          <span class="icon" data-icon="bulb"></span>
+          <h3>模块能力</h3>
+        </div>
+        <p>实时抓包模块落地后，本页面将支持：</p>
+        <ol>
+          <li>列出本机可监听的网卡</li>
+          <li>按 IP 或域名过滤目标流量</li>
+          <li>在线解析 HTTP 请求并触发规则检测</li>
+          <li>抓包期间的告警实时进入告警中心</li>
+        </ol>
+      </article>
+
+      <article class="capture__aside-card capture__aside-card--soft card">
+        <div class="capture__aside-head">
+          <span class="icon" data-icon="alert"></span>
+          <h3>使用限制</h3>
+        </div>
+        <p>只解析 HTTP 明文流量，HTTPS 加密内容不做解密。抓包需要服务进程具备网卡监听权限。</p>
+      </article>
+    </aside>
+  </div>
+</section>

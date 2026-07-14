@@ -1,0 +1,50 @@
+<section class="pcap">
+  <div class="pcap__layout">
+    <div class="pcap__col">
+      <div class="pcap__main card">
+        <h3 class="section-title"><span class="icon" data-icon="upload"></span>上传流量包</h3>
+        <p class="section-sub">上传 pcap 文件，逐条解析其中的 HTTP 请求并执行规则检测。</p>
+
+        <div class="pcap__gate" data-gate></div>
+
+        <form class="pcap__form" data-form hidden>
+          <label class="pcap__drop" data-drop>
+            <input type="file" accept=".pcap,.pcapng,.cap" data-file hidden />
+            <span class="icon" data-icon="file"></span>
+            <strong data-drop-title>点击选择或拖入 pcap 文件</strong>
+            <span data-drop-sub>支持 .pcap / .pcapng</span>
+          </label>
+          <div class="pcap__actions">
+            <button class="btn btn--primary" type="submit" data-analyze disabled>
+              <span class="icon" data-icon="send"></span>开始分析
+            </button>
+            <span class="pcap__busy" data-busy hidden><span class="spinner"></span></span>
+            <span class="pcap__msg" data-msg hidden></span>
+          </div>
+        </form>
+      </div>
+
+      <div class="pcap__tasks card">
+        <h3 class="section-title"><span class="icon" data-icon="table"></span>分析任务</h3>
+        <p class="section-sub">数据库中已记录的分析任务，包含抓包与离线分析。</p>
+        <div data-tasks></div>
+      </div>
+    </div>
+
+    <aside class="pcap__aside">
+      <article class="pcap__aside-card card">
+        <div class="pcap__aside-head">
+          <span class="icon" data-icon="bulb"></span>
+          <h3>模块能力</h3>
+        </div>
+        <p>pcap 离线分析模块落地后，本页面将支持：</p>
+        <ol>
+          <li>上传 pcap / pcapng 流量包</li>
+          <li>重组 TCP 流并解析 HTTP 请求</li>
+          <li>对每条请求执行规则检测和风险评分</li>
+          <li>生成分析任务并把告警写入告警中心</li>
+        </ol>
+      </article>
+    </aside>
+  </div>
+</section>
