@@ -33,6 +33,24 @@ class Setting(Base):
     value: Mapped[str] = mapped_column(Text, default="")
 
 
+class Report(Base):
+    """AI 评测报告表，保存对分析任务的汇总研判结果。"""
+
+    __tablename__ = "reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    task_id: Mapped[int | None] = mapped_column(ForeignKey("tasks.id"), nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(32), default="done", index=True)
+    model: Mapped[str] = mapped_column(String(128), default="")
+    prompt_version: Mapped[str] = mapped_column(String(32), default="")
+    summary: Mapped[str] = mapped_column(Text, default="")
+    risk_assessment: Mapped[str] = mapped_column(Text, default="")
+    key_findings: Mapped[str] = mapped_column(Text, default="[]")
+    recommendations: Mapped[str] = mapped_column(Text, default="[]")
+    error_message: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
 class Alert(Base):
     """告警表，保存规则检测、行为检测和 AI 判断后的风险结果。"""
 

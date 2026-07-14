@@ -7,7 +7,7 @@
 
 ### 待实现模块的响应
 
-抓包、离线分析、AI 报告等模块尚未实现，对应接口统一返回 `501`，
+抓包、离线分析等模块尚未实现，对应接口统一返回 `501`，
 响应体带结构化错误信息，前端据此渲染"模块待实现"提示：
 
 ```json
@@ -42,9 +42,9 @@
 | POST | `/api/capture/start` | 启动抓包任务 | 待实现 |
 | POST | `/api/capture/stop` | 停止抓包任务 | 待实现 |
 | POST | `/api/pcap/analyze` | 上传并分析 pcap | 待实现 |
-| GET | `/api/reports` | 报告列表 | 待实现 |
-| GET | `/api/reports/{report_id}` | 报告详情 | 待实现 |
-| POST | `/api/reports/generate` | 生成评测报告 | 待实现 |
+| GET | `/api/reports` | 报告列表（可筛选） | 可用 |
+| GET | `/api/reports/{report_id}` | 报告详情 | 可用 |
+| POST | `/api/reports/generate` | 生成评测报告 | 可用 |
 | POST | `/api/tasks` | 创建分析任务 | 可用 |
 | GET | `/api/tasks` | 任务列表 | 可用 |
 | PATCH | `/api/tasks/{task_id}` | 更新任务 | 可用 |
@@ -196,25 +196,58 @@
 创建 `pcap` 类型的分析任务，解析 HTTP 请求并执行规则检测。
 预期响应包含任务 ID 与解析统计。目前返回 501。
 
-## AI 评测报告（待实现）
+## AI 评测报告
 
-模块文件：`app/ai/report_generator.py`。依赖系统配置页保存的大模型参数。
+模块文件：`app/ai/report_generator.py`。生成报告前需在系统配置页
+保存大模型接入参数（服务地址、访问密钥、模型），否则返回 400。
 
 ### GET /api/reports
 
-历史报告列表。预期响应 `{ "items": [...] }`。目前返回 501。
+历史报告列表，按创建时间倒序。查询参数（均可选）：`task_id`、
+`limit`（默认 100，最大 500）、`offset`。
+
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "task_id": 3,
+      "status": "done",
+      "model": "some-model",
+      "prompt_version": "v1",
+      "summary": "本次任务共分析 86 条 HTTP 请求，生成 12 条告警。",
+      "risk_assessment": "告警集中在 SQL 注入和敏感文件探测，整体风险等级为 high。",
+      "key_findings": ["192.168.1.20 在短时间内多次访问敏感路径"],
+      "recommendations": ["对登录接口增加参数化查询和访问频率限制"],
+      "error_message": "",
+      "created_at": "2026-07-14T13:20:41"
+    }
+  ]
+}
+```
+
+`status` 为 `done` 或 `failed`。生成失败的报告正文字段为空，
+`error_message` 记录失败原因。
 
 ### GET /api/reports/{report_id}
 
-单份报告详情。目前返回 501。
+单份报告详情，字段同上。报告不存在时返回 404。
 
 ### POST /api/reports/generate
+
+对指定分析任务汇总告警统计和典型告警，调用大模型生成评测报告。
+生成过程是同步的，耗时取决于模型服务。
 
 ```json
 { "task_id": 3 }
 ```
 
-对指定分析任务汇总研判，生成风险概述和处置建议。目前返回 501。
+成功时返回报告对象，字段同 `GET /api/reports/{report_id}`。
+
+- 任务不存在时返回 404；
+- 大模型接入参数未配置时返回 400；
+- 模型调用失败或输出无法解析时返回 502，同时保存一条
+  `status` 为 `failed` 的报告，`error_message` 记录失败原因。
 
 ## 分析任务
 
@@ -307,9 +340,9 @@
 
 ### POST /api/dev/reset-database
 
-清空 `tasks` 和 `alerts` 表并重置自增 ID，保留表结构和运行配置。
-必须显式传 `{"confirm": true}`，否则返回 400。
+清空 `tasks`、`alerts` 和 `reports` 表并重置自增 ID，
+保留表结构和运行配置。必须显式传 `{"confirm": true}`，否则返回 400。
 
 ```json
-{ "status": "reset", "deleted_alerts": 12, "deleted_tasks": 3 }
+{ "status": "reset", "deleted_alerts": 12, "deleted_tasks": 3, "deleted_reports": 2 }
 ```

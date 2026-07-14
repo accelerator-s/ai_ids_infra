@@ -1,5 +1,5 @@
 import { hydrateIcons } from "../../core/icons.js";
-import { createSelect } from "./select.js";
+import { createSelect } from "../../core/select.js";
 
 export async function mount(root, ctx) {
   await hydrateIcons(root);
@@ -8,7 +8,9 @@ export async function mount(root, ctx) {
   const portHint = root.querySelector("[data-port-hint]");
   const base = root.querySelector("[data-base]");
   const key = root.querySelector("[data-key]");
-  const modelSelect = createSelect(root.querySelector("[data-model-select]"));
+  const modelSelect = createSelect(root.querySelector("[data-model-select]"), {
+    emptyLabel: "（先获取模型列表）",
+  });
   const temp = root.querySelector("[data-temp]");
   const tempVal = root.querySelector("[data-temp-val]");
   const fetchBtn = root.querySelector("[data-fetch-models]");
