@@ -1,7 +1,8 @@
 """后端 API 路由。
 
-已可用：状态查询、运行配置、大模型连通、任务、告警、统计、开发辅助。
-待实现：实时抓包、pcap 离线分析、AI 评测报告，相关路由统一返回 501，
+已可用：状态查询、运行配置、大模型连通、AI 评测报告、任务、告警、
+统计、开发辅助。
+待实现：实时抓包、pcap 离线分析，相关路由统一返回 501，
 具体约定见仓库根目录的 API.md。
 """
 
@@ -14,6 +15,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.ai import report_generator
 from app.config import RULES_DIR
 from app.database import crud
 from app.database.db import get_db
@@ -303,22 +305,46 @@ def analyze_pcap() -> dict[str, Any]:
     raise not_implemented("pcap_analyzer", "pcap 离线分析模块尚未实现，暂时无法解析流量包")
 
 
-# ---------- AI 评测报告（待实现） ----------
+# ---------- AI 评测报告 ----------
 
 
 @router.get("/reports")
-def list_reports() -> dict[str, Any]:
-    raise not_implemented("ai_report", "AI 评测报告模块尚未实现，暂时没有历史报告")
+def list_reports(
+    task_id: int | None = None,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    reports = crud.list_reports(db, task_id=task_id, limit=limit, offset=offset)
+    return {"items": [crud.report_to_dict(report) for report in reports]}
 
 
 @router.get("/reports/{report_id}")
-def get_report(report_id: int) -> dict[str, Any]:
-    raise not_implemented("ai_report", "AI 评测报告模块尚未实现")
+def get_report(report_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
+    report = crud.get_report(db, report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return crud.report_to_dict(report)
 
 
 @router.post("/reports/generate")
-def generate_report(request: ReportGenerateRequest) -> dict[str, Any]:
-    raise not_implemented("ai_report", "AI 评测报告模块尚未实现，暂时无法生成报告")
+def generate_report(request: ReportGenerateRequest, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """对指定任务生成评测报告，生成失败时保存 failed 记录并返回 502。"""
+    task = crud.get_task(db, request.task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    settings = crud.get_settings(db)
+    if not (settings["llm.base_url"] and settings["llm.api_key"] and settings["llm.model"]):
+        raise HTTPException(
+            status_code=400,
+            detail="请先在系统配置页填写大模型服务地址、访问密钥和模型",
+        )
+
+    report = report_generator.generate(db, task, settings)
+    if report.status == "failed":
+        raise HTTPException(status_code=502, detail=report.error_message)
+    return crud.report_to_dict(report)
 
 
 # ---------- 任务 ----------

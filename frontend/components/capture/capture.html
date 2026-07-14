@@ -10,14 +10,25 @@
         <div class="capture__grid">
           <div>
             <label class="field-label" for="cap-iface">监听网卡</label>
-            <select class="select" id="cap-iface" data-iface></select>
+            <div class="select" data-iface>
+              <button class="select__trigger" id="cap-iface" type="button" data-select-trigger
+                aria-haspopup="listbox" aria-expanded="false">
+                <span data-select-value>（没有可用网卡）</span>
+                <span class="select__chevron" aria-hidden="true">⌄</span>
+              </button>
+              <div class="select__list" data-select-list role="listbox" hidden></div>
+            </div>
           </div>
           <div>
             <label class="field-label" for="cap-type">目标类型</label>
-            <select class="select" id="cap-type" data-target-type>
-              <option value="ip">IP 地址</option>
-              <option value="domain">域名</option>
-            </select>
+            <div class="select" data-target-type>
+              <button class="select__trigger" id="cap-type" type="button" data-select-trigger
+                aria-haspopup="listbox" aria-expanded="false">
+                <span data-select-value>IP 地址</span>
+                <span class="select__chevron" aria-hidden="true">⌄</span>
+              </button>
+              <div class="select__list" data-select-list role="listbox" hidden></div>
+            </div>
           </div>
           <div>
             <label class="field-label" for="cap-target">目标</label>

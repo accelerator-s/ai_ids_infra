@@ -1,4 +1,5 @@
 import { hydrateIcons } from "../../core/icons.js";
+import { createSelect } from "../../core/select.js";
 import { renderState } from "../state-card/state-card.js";
 
 export async function mount(root, ctx) {
@@ -7,7 +8,9 @@ export async function mount(root, ctx) {
   const gate = root.querySelector("[data-gate]");
   const ui = root.querySelector("[data-ui]");
   const generateForm = root.querySelector("[data-generate]");
-  const taskSelect = root.querySelector("[data-task-select]");
+  const taskSelect = createSelect(root.querySelector("[data-task-select]"), {
+    emptyLabel: "（暂无分析任务）",
+  });
   const generateBtn = root.querySelector("[data-generate-btn]");
   const busy = root.querySelector("[data-busy]");
   const msg = root.querySelector("[data-msg]");
@@ -50,30 +53,18 @@ export async function mount(root, ctx) {
   }
 
   async function loadTasks() {
-    taskSelect.innerHTML = "";
     try {
       const data = await ctx.api.tasks({ limit: 100 });
       const items = data.items || [];
-      if (!items.length) {
-        const opt = document.createElement("option");
-        opt.value = "";
-        opt.textContent = "（暂无分析任务）";
-        taskSelect.append(opt);
-        generateBtn.disabled = true;
-        return;
-      }
-      generateBtn.disabled = false;
-      for (const task of items) {
-        const opt = document.createElement("option");
-        opt.value = task.id;
-        opt.textContent = `#${task.id} · ${task.task_type} · ${task.target || "无目标"} · ${task.status}`;
-        taskSelect.append(opt);
-      }
+      taskSelect.setOptions(
+        items.map((task) => ({
+          value: String(task.id),
+          label: `#${task.id} · ${task.task_type} · ${task.target || "无目标"} · ${task.status}`,
+        })),
+      );
+      generateBtn.disabled = !items.length;
     } catch {
-      const opt = document.createElement("option");
-      opt.value = "";
-      opt.textContent = "（任务列表加载失败）";
-      taskSelect.append(opt);
+      taskSelect.setOptions([], "", "（任务列表加载失败）");
       generateBtn.disabled = true;
     }
   }
@@ -89,13 +80,7 @@ export async function mount(root, ctx) {
       return;
     }
     for (const report of items) {
-      const item = document.createElement("article");
-      item.className = "reports__item";
-      item.innerHTML = `
-        <strong>报告 #${report.id}</strong>
-        <span>任务 #${report.task_id ?? "—"} · ${formatTime(report.created_at)}</span>
-        <p>${report.summary || ""}</p>`;
-      list.append(item);
+      list.append(renderReportItem(report));
     }
   }
 
@@ -108,13 +93,15 @@ export async function mount(root, ctx) {
     try {
       await ctx.api.generateReport(Number(taskSelect.value));
       showMsg("报告生成完成", true);
-      const data = await ctx.api.reports();
-      renderReports(data.items || []);
     } catch (err) {
       showMsg(err.message, false);
     } finally {
       busy.hidden = true;
       generateBtn.disabled = false;
+      try {
+        const data = await ctx.api.reports();
+        renderReports(data.items || []);
+      } catch {}
     }
   });
 
@@ -122,6 +109,64 @@ export async function mount(root, ctx) {
     if (id === "reports" && !moduleReady) checkModule();
   });
   checkModule();
+}
+
+function renderReportItem(report) {
+  const item = document.createElement("article");
+  item.className = "reports__item";
+
+  const title = document.createElement("strong");
+  title.textContent = `报告 #${report.id}`;
+  const meta = document.createElement("span");
+  meta.textContent = [
+    `任务 #${report.task_id ?? "—"}`,
+    formatTime(report.created_at),
+    report.model,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  item.append(title, meta);
+
+  if (report.status === "failed") {
+    item.classList.add("reports__item--failed");
+    const error = document.createElement("p");
+    error.className = "reports__error";
+    error.textContent = `生成失败：${report.error_message || "未知原因"}`;
+    item.append(error);
+    return item;
+  }
+
+  const summary = document.createElement("p");
+  summary.textContent = report.summary || "";
+  item.append(summary);
+
+  appendSection(item, "风险评估", report.risk_assessment);
+  appendPoints(item, "主要发现", report.key_findings);
+  appendPoints(item, "处置建议", report.recommendations);
+  return item;
+}
+
+function appendSection(item, label, text) {
+  if (!text) return;
+  const head = document.createElement("h4");
+  head.textContent = label;
+  const body = document.createElement("p");
+  body.textContent = text;
+  item.append(head, body);
+}
+
+function appendPoints(item, label, entries) {
+  if (!Array.isArray(entries) || !entries.length) return;
+  const head = document.createElement("h4");
+  head.textContent = label;
+  const points = document.createElement("ul");
+  points.className = "reports__points";
+  for (const entry of entries) {
+    const point = document.createElement("li");
+    point.textContent = entry;
+    points.append(point);
+  }
+  item.append(head, points);
 }
 
 function formatTime(iso) {

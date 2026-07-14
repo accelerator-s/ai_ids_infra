@@ -1,4 +1,5 @@
 import { hydrateIcons } from "../../core/icons.js";
+import { createSelect } from "../../core/select.js";
 import { renderState } from "../state-card/state-card.js";
 
 export async function mount(root, ctx) {
@@ -6,8 +7,14 @@ export async function mount(root, ctx) {
 
   const gate = root.querySelector("[data-gate]");
   const form = root.querySelector("[data-form]");
-  const ifaceSelect = root.querySelector("[data-iface]");
-  const targetType = root.querySelector("[data-target-type]");
+  const ifaceSelect = createSelect(root.querySelector("[data-iface]"), {
+    emptyLabel: "（没有可用网卡）",
+  });
+  const targetType = createSelect(root.querySelector("[data-target-type]"));
+  targetType.setOptions([
+    { value: "ip", label: "IP 地址" },
+    { value: "domain", label: "域名" },
+  ]);
   const target = root.querySelector("[data-target]");
   const port = root.querySelector("[data-port]");
   const startBtn = root.querySelector("[data-start]");
@@ -53,21 +60,13 @@ export async function mount(root, ctx) {
   }
 
   function fillInterfaces(interfaces) {
-    ifaceSelect.innerHTML = "";
-    if (!interfaces.length) {
-      const opt = document.createElement("option");
-      opt.value = "";
-      opt.textContent = "（没有可用网卡）";
-      ifaceSelect.append(opt);
-      return;
-    }
-    for (const item of interfaces) {
-      const name = typeof item === "string" ? item : item.name;
-      const opt = document.createElement("option");
-      opt.value = name;
-      opt.textContent = typeof item === "object" && item.description ? `${name} · ${item.description}` : name;
-      ifaceSelect.append(opt);
-    }
+    ifaceSelect.setOptions(
+      interfaces.map((item) => {
+        const name = typeof item === "string" ? item : item.name;
+        const description = typeof item === "object" ? item.description : "";
+        return { value: name, label: description ? `${name} · ${description}` : name };
+      }),
+    );
   }
 
   form.addEventListener("submit", async (event) => {

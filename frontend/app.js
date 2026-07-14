@@ -17,7 +17,7 @@ const DEFAULT_ROUTE = "overview";
 const HEALTH_INTERVAL = 15000;
 
 async function loadComponent(name, host, ctx) {
-  const html = await fetch(`/components/${name}/${name}.html`).then((r) => r.text());
+  const html = await fetch(`/components/${name}/${name}.html`, { cache: "no-cache" }).then((r) => r.text());
   host.innerHTML = html;
   const mod = await import(`/components/${name}/${name}.js`);
   await mod.mount(host, ctx);
