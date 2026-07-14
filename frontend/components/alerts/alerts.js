@@ -1,5 +1,6 @@
 import { hydrateIcons, iconEl } from "../../core/icons.js";
-import { riskLevelName } from "../../core/api.js";
+import { RISK_LEVELS, riskLevelName } from "../../core/api.js";
+import { createSelect } from "../../core/select.js";
 import { renderState } from "../state-card/state-card.js";
 
 const PAGE_SIZE = 50;
@@ -8,7 +9,16 @@ export async function mount(root, ctx) {
   await hydrateIcons(root);
 
   const attackInput = root.querySelector("[data-filter-attack]");
-  const levelSelect = root.querySelector("[data-filter-level]");
+  const levelSelect = createSelect(root.querySelector("[data-filter-level]"), {
+    onChange: () => {
+      offset = 0;
+      load();
+    },
+  });
+  levelSelect.setOptions([
+    { value: "", label: "全部" },
+    ...RISK_LEVELS.map((level) => ({ value: level, label: riskLevelName(level) })),
+  ]);
   const ipInput = root.querySelector("[data-filter-ip]");
   const refreshBtn = root.querySelector("[data-refresh]");
   const tableHost = root.querySelector("[data-table]");
@@ -216,10 +226,6 @@ export async function mount(root, ctx) {
       }
     });
   }
-  levelSelect.addEventListener("change", () => {
-    offset = 0;
-    load();
-  });
   prevBtn.addEventListener("click", () => {
     offset = Math.max(0, offset - PAGE_SIZE);
     load();

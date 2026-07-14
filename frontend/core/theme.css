@@ -1,6 +1,8 @@
 /* 主题变量：明暗两套配色通过 [data-theme] 切换，图标继承 currentColor。 */
 
 :root {
+  color-scheme: light;
+
   --bg: #ffffff;
   --bg-soft: #f5f6f8;
   --surface: #ffffff;
@@ -43,6 +45,8 @@
 }
 
 [data-theme="dark"] {
+  color-scheme: dark;
+
   --bg: #000000;
   --bg-soft: #0b0e12;
   --surface: #0d1116;

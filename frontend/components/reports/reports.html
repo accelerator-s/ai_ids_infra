@@ -10,7 +10,14 @@
         <form class="reports__generate" data-generate>
           <div class="reports__generate-field">
             <label class="field-label" for="report-task">选择分析任务</label>
-            <select class="select" id="report-task" data-task-select></select>
+            <div class="select" data-task-select>
+              <button class="select__trigger" id="report-task" type="button" data-select-trigger
+                aria-haspopup="listbox" aria-expanded="false">
+                <span data-select-value>（暂无分析任务）</span>
+                <span class="select__chevron" aria-hidden="true">⌄</span>
+              </button>
+              <div class="select__list" data-select-list role="listbox" hidden></div>
+            </div>
           </div>
           <button class="btn btn--primary" type="submit" data-generate-btn>
             <span class="icon" data-icon="send"></span>生成报告
@@ -29,12 +36,12 @@
           <span class="icon" data-icon="bulb"></span>
           <h3>模块能力</h3>
         </div>
-        <p>AI 评测报告模块落地后，本页面将支持：</p>
+        <p>本页面支持：</p>
         <ol>
-          <li>选择已完成的分析任务生成报告</li>
+          <li>选择分析任务生成评测报告</li>
           <li>汇总攻击类型、风险分布和高危来源</li>
           <li>调用大模型输出风险概述与处置建议</li>
-          <li>查看和回溯历史报告</li>
+          <li>查看和回溯历史报告，失败的报告会记录原因</li>
         </ol>
       </article>
 

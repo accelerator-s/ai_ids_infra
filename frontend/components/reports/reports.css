@@ -81,6 +81,32 @@
   line-height: 1.65;
 }
 
+.reports__item h4 {
+  margin: 12px 0 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--fg-faint);
+}
+
+.reports__points {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.reports__points li {
+  color: var(--fg-soft);
+  font-size: 0.86rem;
+  line-height: 1.65;
+}
+
+.reports__item--failed {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+}
+
+.reports__item p.reports__error {
+  color: var(--danger);
+}
+
 .reports__aside {
   display: grid;
   gap: 14px;
