@@ -25,6 +25,7 @@ from app.database.db import get_db
 from app.services import llm
 from app.capture.pcap_analyzer import PcapAnalyzer
 from app.protocol.packet_parser import parse_http_request
+from app.detection.rule_engine import RuleEngine
 
 router = APIRouter(prefix="/api")
 
