@@ -1,0 +1,44 @@
+<section class="alerts">
+  <div class="alerts__filters card">
+    <div class="alerts__filter">
+      <label class="field-label" for="alert-attack">攻击类型</label>
+      <input class="input" id="alert-attack" data-filter-attack type="text" placeholder="如 SQL Injection" />
+    </div>
+    <div class="alerts__filter">
+      <label class="field-label" for="alert-level">风险等级</label>
+      <div class="select" data-filter-level>
+        <button class="select__trigger" id="alert-level" type="button" data-select-trigger
+          aria-haspopup="listbox" aria-expanded="false">
+          <span data-select-value>全部</span>
+          <span class="select__chevron" aria-hidden="true">⌄</span>
+        </button>
+        <div class="select__list" data-select-list role="listbox" hidden></div>
+      </div>
+    </div>
+    <div class="alerts__filter">
+      <label class="field-label" for="alert-ip">来源 IP</label>
+      <input class="input" id="alert-ip" data-filter-ip type="text" placeholder="如 10.0.0.5" />
+    </div>
+    <button class="btn btn--primary alerts__refresh" type="button" data-refresh>
+      <span class="icon" data-icon="refresh"></span>查询
+    </button>
+  </div>
+
+  <div class="alerts__body">
+    <div class="alerts__list card">
+      <div data-table></div>
+      <div class="alerts__pager" data-pager hidden>
+        <button class="btn btn--ghost" type="button" data-prev>上一页</button>
+        <span class="alerts__page" data-page>第 1 页</span>
+        <button class="btn btn--ghost" type="button" data-next>下一页</button>
+      </div>
+    </div>
+
+    <aside class="alerts__detail card" data-detail>
+      <div class="alerts__detail-empty">
+        <span class="icon" data-icon="doc"></span>
+        <p>点击左侧告警查看命中规则和请求详情。</p>
+      </div>
+    </aside>
+  </div>
+</section>

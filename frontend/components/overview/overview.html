@@ -1,0 +1,67 @@
+<section class="overview">
+  <div class="overview__dashboard card">
+    <div class="overview__hero">
+      <div class="overview__hero-copy">
+        <span class="overview__eyebrow">System Monitor</span>
+        <h2>系统运行状态</h2>
+        <p>集中查看数据库、规则库、检测链路和 AI 接入的实时就绪情况。</p>
+      </div>
+    </div>
+
+    <div class="overview__content">
+      <div class="overview__score" aria-label="模块就绪度">
+        <svg class="overview__ring" viewBox="0 0 120 120" role="img" aria-label="模块就绪度图表">
+          <circle class="overview__ring-track" cx="60" cy="60" r="48"></circle>
+          <circle class="overview__ring-value" cx="60" cy="60" r="48" data-readiness-ring></circle>
+        </svg>
+        <div class="overview__score-text">
+          <strong data-readiness-value>0%</strong>
+          <span>模块就绪度</span>
+        </div>
+      </div>
+
+      <div class="overview__modules" data-modules></div>
+    </div>
+
+    <div class="overview__diagnostic" data-diagnostic>正在等待后端健康检查结果。</div>
+  </div>
+
+  <div class="overview__stats" data-stat-cards></div>
+
+  <div class="overview__charts">
+    <article class="overview__chart card">
+      <div class="overview__chart-head">
+        <span class="icon" data-icon="chart"></span>
+        <h3>攻击类型分布</h3>
+      </div>
+      <div data-attack-chart></div>
+    </article>
+
+    <article class="overview__chart card">
+      <div class="overview__chart-head">
+        <span class="icon" data-icon="chart"></span>
+        <h3>风险等级分布</h3>
+      </div>
+      <div data-risk-chart></div>
+    </article>
+
+    <article class="overview__chart card">
+      <div class="overview__chart-head">
+        <span class="icon" data-icon="table"></span>
+        <h3>高频来源 IP</h3>
+      </div>
+      <div data-ip-chart></div>
+    </article>
+  </div>
+
+  <article class="overview__recent card">
+    <div class="overview__chart-head">
+      <span class="icon" data-icon="siren"></span>
+      <h3>最近告警</h3>
+      <button class="btn btn--ghost overview__more" type="button" data-goto-alerts>
+        前往告警中心
+      </button>
+    </div>
+    <div data-recent-alerts></div>
+  </article>
+</section>

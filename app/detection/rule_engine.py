@@ -62,10 +62,7 @@ class RuleMatch:
 
 
 def load_rules(rules_dir: str | Path) -> list[Rule]:
-    """该函数的作用为: 加载指定目录下所有 *.json 规则文件，编译正则后返回 Rule 列表。
-
-    参数: rules_dir - 规则文件所在目录路径
-    """
+    """加载 rules_dir 下所有 *.json 规则文件，编译正则后返回 Rule 列表。"""
     rules: list[Rule] = []
     for path in sorted(Path(rules_dir).glob("*.json")):
         raw = json.loads(path.read_text(encoding="utf-8"))
@@ -89,27 +86,16 @@ class RuleEngine:
     """规则引擎类：持有编译好的规则集，对每个请求做匹配。"""
 
     def __init__(self, rules: list[Rule]) -> None:
-        """该函数的作用为: 初始化规则引擎实例。
-
-        参数: rules - 编译好的 Rule 对象列表
-        """
         self.rules = rules
 
     @classmethod
     def from_dir(cls, rules_dir: str | Path) -> "RuleEngine":
-        """该函数的作用为: 从指定目录加载规则文件并创建 RuleEngine 实例。
-
-        参数: rules_dir - 规则文件所在目录路径
-        """
+        """从规则目录直接构建引擎。"""
         return cls(load_rules(rules_dir))
 
     @staticmethod
     def _field_text(request: dict[str, Any], field_name: str) -> str:
-        """该函数的作用为: 从结构化请求中提取指定字段的可扫描文本。
-
-        参数: request    - 结构化 HTTP 请求字典
-             field_name - 要提取的字段名（如 path/query/body/headers/user_agent）
-        """
+        """取出请求中某个字段的可扫描文本；user_agent 和 headers 需要展开。"""
         if field_name == "user_agent":
             headers = request.get("headers") or {}
             return str(headers.get("User-Agent", ""))
@@ -119,10 +105,10 @@ class RuleEngine:
         return str(request.get(field_name, ""))
 
     def match(self, request: dict[str, Any]) -> list[RuleMatch]:
-        """该函数的作用为: 对单个请求执行全部规则匹配，返回所有命中结果（每条规则最多命中一次）。
+        """对单个请求执行全部规则匹配，每条规则最多命中一次。
 
-        参数: request - 协议解析模块产出的结构化请求字典，
-                       至少包含 method/path/query/body/headers 等键
+        request 是协议解析模块产出的结构化请求字典，
+        至少包含 method/path/query/body/headers 等键。
         """
         matches: list[RuleMatch] = []
         for rule in self.rules:
@@ -132,11 +118,7 @@ class RuleEngine:
         return matches
 
     def _first_match(self, request: dict[str, Any], rule: Rule) -> RuleMatch | None:
-        """该函数的作用为: 扫描单条规则的所有目标字段，首次命中即返回结果（天然去重）。
-
-        参数: request - 结构化 HTTP 请求字典
-             rule    - 要匹配的单条规则对象
-        """
+        """扫描单条规则的所有目标字段，首次命中即返回，避免同一规则重复计数。"""
         for field in rule.target_fields:
             text = self._field_text(request, field)
             # user_agent 字段允许空匹配（用于检测空UA），其他字段为空时跳过

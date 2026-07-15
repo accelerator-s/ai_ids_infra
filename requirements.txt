@@ -4,5 +4,4 @@ pyshark==0.6
 SQLAlchemy==2.0.41
 pydantic==2.11.7
 python-multipart==0.0.20
-python-dotenv==1.1.1
 pytest==8.4.1

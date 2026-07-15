@@ -6,11 +6,39 @@ from typing import Any
 from sqlalchemy import desc, func, text
 from sqlalchemy.orm import Session
 
-from app.database.models import Alert, Task
+from app.config import DEFAULT_SETTINGS
+from app.database.models import Alert, Report, Setting, Task
 
 
 def _json_dumps(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False)
+
+
+def get_settings(db: Session) -> dict[str, Any]:
+    """读取全部运行配置，数据库中没有的键回落到默认值。"""
+    settings = dict(DEFAULT_SETTINGS)
+    for row in db.query(Setting).all():
+        if row.key not in DEFAULT_SETTINGS:
+            continue
+        try:
+            settings[row.key] = json.loads(row.value)
+        except json.JSONDecodeError:
+            settings[row.key] = row.value
+    return settings
+
+
+def save_settings(db: Session, values: dict[str, Any]) -> dict[str, Any]:
+    """写入运行配置，只接受默认值表里已知的键。"""
+    for key, value in values.items():
+        if key not in DEFAULT_SETTINGS:
+            continue
+        row = db.get(Setting, key)
+        if row is None:
+            row = Setting(key=key)
+            db.add(row)
+        row.value = _json_dumps(value)
+    db.commit()
+    return get_settings(db)
 
 
 def create_task(db: Session, task_type: str, target: str = "", status: str = "pending") -> Task:
@@ -51,6 +79,11 @@ def update_task(
     db.commit()
     db.refresh(task)
     return task
+
+
+def get_task(db: Session, task_id: int) -> Task | None:
+    """根据任务 ID 查询单个分析任务。"""
+    return db.get(Task, task_id)
 
 
 def list_tasks(db: Session, limit: int = 100, offset: int = 0) -> list[Task]:
@@ -146,8 +179,78 @@ def get_stats(db: Session) -> dict[str, Any]:
     }
 
 
+def get_task_stats(db: Session, task_id: int) -> dict[str, Any]:
+    """统计单个任务的告警分布和典型告警，供 AI 评测报告汇总输入。"""
+    task_alerts = db.query(Alert).filter(Alert.task_id == task_id)
+    total = task_alerts.count()
+
+    attack_rows = (
+        db.query(Alert.attack_type, func.count(Alert.id))
+        .filter(Alert.task_id == task_id)
+        .group_by(Alert.attack_type)
+        .all()
+    )
+    risk_rows = (
+        db.query(Alert.risk_level, func.count(Alert.id))
+        .filter(Alert.task_id == task_id)
+        .group_by(Alert.risk_level)
+        .all()
+    )
+    ip_rows = (
+        db.query(Alert.src_ip, func.count(Alert.id).label("count"))
+        .filter(Alert.task_id == task_id, Alert.src_ip != "")
+        .group_by(Alert.src_ip)
+        .order_by(desc("count"))
+        .limit(5)
+        .all()
+    )
+    typical_alerts = task_alerts.order_by(desc(Alert.score), desc(Alert.created_at)).limit(5).all()
+
+    return {
+        "alert_total": total,
+        "attack_type_distribution": dict(attack_rows),
+        "risk_level_distribution": dict(risk_rows),
+        "top_source_ips": [{"src_ip": src_ip, "count": count} for src_ip, count in ip_rows],
+        "typical_alerts": [alert_to_dict(alert) for alert in typical_alerts],
+    }
+
+
+def create_report(db: Session, **report_data: Any) -> Report:
+    """保存 AI 评测报告，key_findings 和 recommendations 存 JSON 文本。"""
+    for field in ("key_findings", "recommendations"):
+        value = report_data.get(field)
+        if value is not None and not isinstance(value, str):
+            report_data[field] = _json_dumps(value)
+
+    report = Report(**report_data)
+    db.add(report)
+    db.commit()
+    db.refresh(report)
+    return report
+
+
+def list_reports(
+    db: Session,
+    *,
+    task_id: int | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> list[Report]:
+    """按创建时间倒序查询报告列表，可按任务 ID 筛选。"""
+    query = db.query(Report)
+    if task_id is not None:
+        query = query.filter(Report.task_id == task_id)
+    return query.order_by(desc(Report.created_at), desc(Report.id)).offset(offset).limit(limit).all()
+
+
+def get_report(db: Session, report_id: int) -> Report | None:
+    """根据报告 ID 查询单份报告。"""
+    return db.get(Report, report_id)
+
+
 def reset_database(db: Session) -> dict[str, int]:
     """清空测试数据并保留数据库表结构。"""
+    deleted_reports = db.query(Report).delete()
     deleted_alerts = db.query(Alert).delete()
     deleted_tasks = db.query(Task).delete()
 
@@ -155,10 +258,14 @@ def reset_database(db: Session) -> dict[str, int]:
         text("SELECT name FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'")
     ).first()
     if has_sequence is not None:
-        db.execute(text("DELETE FROM sqlite_sequence WHERE name IN ('alerts', 'tasks')"))
+        db.execute(text("DELETE FROM sqlite_sequence WHERE name IN ('alerts', 'tasks', 'reports')"))
 
     db.commit()
-    return {"deleted_alerts": deleted_alerts, "deleted_tasks": deleted_tasks}
+    return {
+        "deleted_alerts": deleted_alerts,
+        "deleted_tasks": deleted_tasks,
+        "deleted_reports": deleted_reports,
+    }
 
 
 def task_to_dict(task: Task) -> dict[str, Any]:
@@ -174,6 +281,31 @@ def task_to_dict(task: Task) -> dict[str, Any]:
         "created_at": task.created_at.isoformat() if task.created_at else None,
         "finished_at": task.finished_at.isoformat() if task.finished_at else None,
     }
+
+
+def report_to_dict(report: Report) -> dict[str, Any]:
+    """将报告模型转换为接口响应字典，并解析 JSON 列表字段。"""
+    return {
+        "id": report.id,
+        "task_id": report.task_id,
+        "status": report.status,
+        "model": report.model,
+        "prompt_version": report.prompt_version,
+        "summary": report.summary,
+        "risk_assessment": report.risk_assessment,
+        "key_findings": _json_loads_list(report.key_findings),
+        "recommendations": _json_loads_list(report.recommendations),
+        "error_message": report.error_message,
+        "created_at": report.created_at.isoformat() if report.created_at else None,
+    }
+
+
+def _json_loads_list(value: str) -> list[Any]:
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return []
+    return parsed if isinstance(parsed, list) else []
 
 
 def alert_to_dict(alert: Alert) -> dict[str, Any]:
