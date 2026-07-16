@@ -288,14 +288,17 @@ User-Agent
 
 ```json
 {
-  "type": "SQL Injection",
+  "id": "sqli-001",
+  "attack_type": "SQL Injection",
   "level": "high",
+  "score": 70,
+  "target_fields": ["query", "body"],
   "patterns": [
-    "union\\s+select",
-    "or\\s+1\\s*=\\s*1",
     "sleep\\s*\\(",
-    "--"
-  ]
+    "extractvalue\\s*\\(",
+    "information_schema"
+  ],
+  "description": "SQL注入专用函数/关键词，正常流量不会出现"
 }
 ```
 
@@ -511,13 +514,13 @@ ai_ids_infra/
 │   │   └── llm.py                  # OpenAI 兼容接口客户端
 │   ├── capture/
 │   │   ├── live_capture.py         # （待实现）实时抓包
-│   │   └── pcap_analyzer.py        # （待实现）pcap 离线分析
+│   │   └── pcap_analyzer.py        # pcap 离线分析
 │   ├── protocol/
-│   │   └── packet_parser.py        # （待实现）协议解析
+│   │   └── packet_parser.py        # 协议解析
 │   ├── detection/
 │   │   ├── rule_engine.py          # 规则检测
 │   │   ├── risk_score.py           # 风险评分
-│   │   └── behavior_detector.py    # （待实现）行为检测
+│   │   └── behavior_detector.py    # 行为检测
 │   ├── ai/
 │   │   ├── request_analyzer.py     # （待实现）AI 辅助研判
 │   │   └── report_generator.py     # AI 评测报告
@@ -553,8 +556,8 @@ ai_ids_infra/
 接口定义、请求响应示例和待实现标记统一维护在 [API.md](API.md)，
 路由实现见 `app/api/routes.py`，两者保持同步。
 
-- 已可用：系统状态、运行配置、大模型连通、AI 评测报告、任务、告警、统计、开发辅助。
-- 待实现（返回 501 与结构化错误）：实时抓包、pcap 离线分析。
+- 已可用：系统状态、运行配置、大模型连通、AI 评测报告、pcap 离线分析、任务、告警、统计、开发辅助。
+- 待实现（返回 501 与结构化错误）：实时抓包。
 
 ## WebUI 页面
 
@@ -584,7 +587,7 @@ WebUI 已实现六个页面，通过左侧导航切换，支持明暗主题。
 ```text
 上传 pcap 文件并启动分析
 查看分析任务列表和进度
-分析模块未实现时展示待实现提示
+展示数据包总数、HTTP 请求数和告警数量
 ```
 
 ### 4. 告警中心
