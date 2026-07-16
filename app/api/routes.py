@@ -449,37 +449,6 @@ def create_alert(request: AlertCreateRequest, db: Session = Depends(get_db)) -> 
     return crud.alert_to_dict(alert)
 
 
-@router.post("/pcap/analyze")
-async def analyze_pcap(
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-) -> dict[str, Any]:
-    """接收 .pcap 文件并执行离线检测任务。"""
-    filename = file.filename or "upload.pcap"
-    if Path(filename).suffix.lower() != ".pcap":
-        raise HTTPException(status_code=400, detail="only .pcap files are supported")
-
-    with TemporaryDirectory(prefix="ai-ids-pcap-") as directory:
-        upload_path = Path(directory) / f"{uuid4().hex}.pcap"
-        total_size = 0
-        with upload_path.open("wb") as destination:
-            while chunk := await file.read(1024 * 1024):
-                total_size += len(chunk)
-                destination.write(chunk)
-
-        if total_size == 0:
-            raise HTTPException(status_code=400, detail="pcap file is empty")
-
-        analyzer = PcapAnalyzer(
-            db=db,
-            packet_parser=parse_http_request,
-            rule_engine=RuleEngine.from_dir(RULES_DIR),
-        )
-        result = analyzer.analyze(upload_path, task_target=filename)
-
-    return _pcap_result_to_dict(result)
-
-
 @router.get("/alerts")
 def list_alerts(
     attack_type: str | None = None,
