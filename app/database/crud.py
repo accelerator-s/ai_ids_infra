@@ -98,13 +98,12 @@ def list_tasks(db: Session, limit: int = 100, offset: int = 0) -> list[Task]:
 
 
 def create_alert(db: Session, **alert_data: Any) -> Alert | None:
-    """创建告警记录，并自动同步所属任务的告警数量。"""
+    """创建告警记录，task_id 对应的任务不存在时返回 None。"""
     matched_rules = alert_data.get("matched_rules")
     if matched_rules is not None and not isinstance(matched_rules, str):
         alert_data["matched_rules"] = _json_dumps(matched_rules)
 
     task_id = alert_data.get("task_id")
-    task = None
     if task_id is not None:
         task = db.get(Task, task_id)
         if task is None:
@@ -112,10 +111,6 @@ def create_alert(db: Session, **alert_data: Any) -> Alert | None:
 
     alert = Alert(**alert_data)
     db.add(alert)
-
-    if task is not None:
-        task.alert_count += 1
-
     db.commit()
     db.refresh(alert)
     return alert

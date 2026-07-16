@@ -114,8 +114,10 @@ class IpBehavior:
         ))
 
     def submit(self) -> list[BehaviorMatch]:
-        """上交本 IP 累积到的告警。"""
-        return list(self.fired)
+        """返回本 IP 累积的告警并清空列表，避免重复上报。"""
+        alerts = list(self.fired)
+        self.fired.clear()
+        return alerts
 
 
 class BehaviorDetector:
