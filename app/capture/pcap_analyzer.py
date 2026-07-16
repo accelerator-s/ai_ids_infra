@@ -12,6 +12,7 @@ import pyshark
 from sqlalchemy.orm import Session
 
 from app.database import crud
+from app.detection.behavior_detector import BehaviorDetector
 from app.detection.risk_score import calculate_risk
 from app.detection.rule_engine import RuleEngine
 from app.protocol.packet_parser import get_tcp_stream_id, parse_http_response_status
@@ -105,6 +106,9 @@ class PcapAnalyzer:
                 for request in requests:
                     alert_count += self._detect_request(task.id, request)
 
+                # 规则检测完成后，将所有请求整体喂入行为检测
+                alert_count += self._detect_behavior(task.id, requests)
+
             finally:
                 capture.close()
 
@@ -149,7 +153,11 @@ class PcapAnalyzer:
             )
 
     def _detect_request(self, task_id: int, request: dict[str, Any]) -> int:
-        """将已完成状态关联的请求交给现有规则检测链。"""
+        """该函数的作用为: 对单条请求执行规则检测，评分后写入告警表。
+
+        参数: task_id - 所属任务ID
+             request - 结构化 HTTP 请求字典
+        """
         matches = self.rule_engine.match(request)
         risk = calculate_risk(matches)
         if risk.level == "normal":
@@ -175,3 +183,27 @@ class PcapAnalyzer:
             reason="；".join(reasons),
         )
         return int(alert is not None)
+
+    def _detect_behavior(self, task_id: int, requests: list[dict[str, Any]]) -> int:
+        """该函数的作用为: 对所有请求整体执行行为检测，将超过阈值的行为告警写入告警表。
+
+        参数: task_id  - 所属任务ID
+             requests - 本次任务解析出的全部 HTTP 请求列表
+        """
+        detector = BehaviorDetector()
+        behavior_matches = detector.detect(requests)
+        count = 0
+        for match in behavior_matches:
+            alert = crud.create_alert(
+                self.db,
+                task_id=task_id,
+                src_ip=match.src_ip,
+                attack_type=match.attack_type,
+                risk_level=match.level,
+                score=match.score,
+                matched_rules=[],
+                reason=match.reason,
+            )
+            if alert is not None:
+                count += 1
+        return count
