@@ -11,6 +11,7 @@ from typing import Any
 import pyshark
 from sqlalchemy.orm import Session
 
+from app.ai import request_analyzer
 from app.database import crud
 from app.detection.behavior_detector import BehaviorDetector
 from app.detection.risk_score import calculate_risk
@@ -19,6 +20,7 @@ from app.protocol.packet_parser import get_tcp_stream_id, parse_http_response_st
 
 
 PacketParser = Callable[[Any], dict[str, Any] | None]
+AiAnalyzer = Callable[[dict[str, Any], Any, dict[str, Any]], request_analyzer.AnalysisResult]
 logger = logging.getLogger(__name__)
 
 
@@ -42,10 +44,14 @@ class PcapAnalyzer:
         db: Session,
         packet_parser: PacketParser,
         rule_engine: RuleEngine,
+        ai_analyzer: AiAnalyzer = request_analyzer.analyze,
+        settings: dict[str, Any] | None = None,
     ) -> None:
         self.db = db
         self.packet_parser = packet_parser
         self.rule_engine = rule_engine
+        self.ai_analyzer = ai_analyzer
+        self.settings = settings if settings is not None else crud.get_settings(db)
 
     def analyze(
         self,
@@ -163,10 +169,78 @@ class PcapAnalyzer:
         if risk.level == "normal":
             return 0
 
-        attack_types = sorted({match.attack_type for match in risk.matches})
+        if risk.need_ai_filter:
+            return self._review_ambiguous_request(task_id, request, risk)
+
+        return int(self._create_rule_alert(task_id, request, risk) is not None)
+
+    def _review_ambiguous_request(self, task_id: int, request: dict[str, Any], risk: Any) -> int:
+        """AI 判恶意才告警；正常和调用失败均保留独立研判记录。"""
+        matched_rules = [match.rule_id for match in risk.matches]
+        summary = request_analyzer.request_summary(request)
+        try:
+            result = self.ai_analyzer(request, risk, self.settings)
+        except Exception as exc:
+            logger.warning("AI review failed for task %s: %s", task_id, exc)
+            crud.create_ai_review(
+                self.db,
+                task_id=task_id,
+                request_summary=summary,
+                original_score=risk.score,
+                matched_rules=matched_rules,
+                judgement="manual_review",
+                attack_type=self._attack_types(risk),
+                reason=str(exc),
+                status="pending_review",
+                model=str(self.settings.get("llm.model", "")),
+                prompt_version=request_analyzer.PROMPT_VERSION,
+            )
+            return 0
+
+        alert = None
+        if result.ai_judgement == "malicious":
+            alert = self._create_rule_alert(
+                task_id,
+                request,
+                risk,
+                attack_type=result.attack_type,
+                ai_judgement=result.ai_judgement,
+                ai_confidence=result.confidence,
+                ai_reason=result.reason,
+            )
+
+        crud.create_ai_review(
+            self.db,
+            task_id=task_id,
+            alert_id=alert.id if alert is not None else None,
+            request_summary=summary,
+            original_score=risk.score,
+            matched_rules=matched_rules,
+            judgement=result.ai_judgement,
+            attack_type=result.attack_type,
+            confidence=result.confidence,
+            reason=result.reason,
+            status="completed",
+            model=result.model,
+            prompt_version=result.prompt_version,
+        )
+        return int(alert is not None)
+
+    def _create_rule_alert(
+        self,
+        task_id: int,
+        request: dict[str, Any],
+        risk: Any,
+        *,
+        attack_type: str | None = None,
+        ai_judgement: str = "",
+        ai_confidence: float | None = None,
+        ai_reason: str = "",
+    ) -> Any:
+        """把规则评分结果及可选 AI 结论写入告警表。"""
         matched_rules = [match.rule_id for match in risk.matches]
         reasons = [match.reason for match in risk.matches]
-        alert = crud.create_alert(
+        return crud.create_alert(
             self.db,
             task_id=task_id,
             src_ip=str(request.get("src_ip", "")),
@@ -176,13 +250,19 @@ class PcapAnalyzer:
             method=str(request.get("method", "")),
             path=str(request.get("path", "")),
             query=str(request.get("query", "")),
-            attack_type=", ".join(attack_types) or "Unknown",
+            attack_type=attack_type or self._attack_types(risk),
             risk_level=risk.level,
             score=risk.score,
             matched_rules=matched_rules,
+            ai_judgement=ai_judgement,
+            ai_confidence=ai_confidence,
+            ai_reason=ai_reason,
             reason="；".join(reasons),
         )
-        return int(alert is not None)
+
+    @staticmethod
+    def _attack_types(risk: Any) -> str:
+        return ", ".join(sorted({match.attack_type for match in risk.matches})) or "Unknown"
 
     def _detect_behavior(self, task_id: int, requests: list[dict[str, Any]]) -> int:
         """该函数的作用为: 对所有请求整体执行行为检测，将超过阈值的行为告警写入告警表。

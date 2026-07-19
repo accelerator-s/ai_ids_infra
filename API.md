@@ -196,6 +196,25 @@
 创建 `pcap` 类型的分析任务，解析 HTTP 请求并执行规则检测。
 预期响应包含任务 ID 与解析统计。目前返回 501。
 
+## AI 辅助研判
+
+模块文件：`app/ai/request_analyzer.py`。规则检测评分为 20 至 69 分时自动调用；
+AI 判定恶意才生成告警，判定正常仍保留研判记录，调用失败或输出非法时记录为待人工复核。
+行为检测告警和 70 分以上的规则告警不调用 AI。
+
+### GET /api/ai/reviews
+
+查询 AI 研判记录，按创建时间倒序。查询参数（均可选）：`task_id`、`status`、
+`judgement`、`limit`（默认 100，最大 500）、`offset`。
+
+`judgement` 为 `malicious`、`benign` 或 `manual_review`；调用失败时 `status`
+为 `pending_review`，并在 `reason` 中保存失败原因。
+
+### GET /api/ai/reviews/{review_id}
+
+查询单条研判详情，包含请求摘要、原始评分、命中规则、AI 结论、攻击类型、
+置信度、理由及关联告警 ID。记录不存在时返回 404。
+
 ## AI 评测报告
 
 模块文件：`app/ai/report_generator.py`。生成报告前需在系统配置页
@@ -304,6 +323,9 @@
   "risk_level": "high",
   "score": 85,
   "matched_rules": ["SQL-001"],
+  "ai_judgement": "malicious",
+  "ai_confidence": 0.87,
+  "ai_reason": "请求参数组合具有明确的 SQL 注入意图",
   "reason": "命中 SQL 注入规则"
 }
 ```

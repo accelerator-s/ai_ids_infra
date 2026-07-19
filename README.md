@@ -617,8 +617,7 @@ WebUI 已实现六个页面，通过左侧导航切换，支持明暗主题。
 ## 数据库设计
 
 使用 SQLite 保存任务、告警、运行配置和评测报告，首次启动自动建表。
-`alerts`、`tasks`、`settings`、`reports` 四张表已创建；`ai_reviews`
-为 AI 辅助研判模块预留的设计，模块落地时一并创建。
+`alerts`、`tasks`、`settings`、`reports`、`ai_reviews` 五张表均已创建。
 
 ### alerts 告警表
 
@@ -663,7 +662,7 @@ WebUI 已实现六个页面，通过左侧导航切换，支持明暗主题。
 | key | 配置项键名，如 `server.port`、`llm.base_url` |
 | value | JSON 编码后的配置值 |
 
-### ai_reviews AI 辅助研判记录表（预留）
+### ai_reviews AI 辅助研判记录表
 
 | 字段 | 说明 |
 | --- | --- |
@@ -802,9 +801,9 @@ python -m app.main --host 0.0.0.0 --port 8080
     - 输出 `low`、`medium`、`high`、`critical` 风险等级。
     - 输出是否需要 AI 辅助研判的标记。
 
-11. 实现 AI 辅助研判模块
+11. ✅ 实现 AI 辅助研判模块
     - 对 20 至 69 分的模糊请求触发 AI 分析。
-    - 将 HTTP 请求、命中规则、行为检测结果和风险分数整理为 AI 输入。
+    - 将 HTTP 请求、规则命中结果和风险分数整理为 AI 输入（行为检测不经过 AI）。
     - 设计模糊请求研判 Prompt 模板。
     - 解析 AI 返回的攻击判断、攻击类型、置信度和原因。
     - 对 AI 判定为攻击的请求生成告警。

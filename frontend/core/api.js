@@ -76,6 +76,8 @@ export const api = {
   tasks: (params) => request("GET", withQuery("/api/tasks", params)),
   alerts: (params) => request("GET", withQuery("/api/alerts", params)),
   alert: (id) => request("GET", `/api/alerts/${id}`),
+  aiReviews: (params) => request("GET", withQuery("/api/ai/reviews", params)),
+  aiReview: (id) => request("GET", `/api/ai/reviews/${id}`),
   stats: () => request("GET", "/api/stats"),
 
   reports: () => request("GET", "/api/reports"),

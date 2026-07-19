@@ -109,6 +109,7 @@ class AlertCreateRequest(BaseModel):
     score: float = 0.0
     matched_rules: list[str] = Field(default_factory=list)
     ai_judgement: str = ""
+    ai_confidence: float | None = Field(default=None, ge=0, le=1)
     ai_reason: str = ""
     reason: str = ""
     status: str = "new"
@@ -392,6 +393,38 @@ def generate_report(request: ReportGenerateRequest, db: Session = Depends(get_db
     if report.status == "failed":
         raise HTTPException(status_code=502, detail=report.error_message)
     return crud.report_to_dict(report)
+
+
+# ---------- AI 辅助研判 ----------
+
+
+@router.get("/ai/reviews")
+def list_ai_reviews(
+    task_id: int | None = None,
+    status: str | None = None,
+    judgement: str | None = None,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """查询 AI 正常、恶意及待人工复核的全部研判记录。"""
+    reviews = crud.list_ai_reviews(
+        db,
+        task_id=task_id,
+        status=status,
+        judgement=judgement,
+        limit=limit,
+        offset=offset,
+    )
+    return {"items": [crud.ai_review_to_dict(review) for review in reviews]}
+
+
+@router.get("/ai/reviews/{review_id}")
+def get_ai_review(review_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
+    review = crud.get_ai_review(db, review_id)
+    if review is None:
+        raise HTTPException(status_code=404, detail="AI review not found")
+    return crud.ai_review_to_dict(review)
 
 
 # ---------- 任务 ----------
