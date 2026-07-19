@@ -711,7 +711,7 @@ tshark -v
 
 ```bash
 # 安装依赖
-.venv/bin/pip install -r requirements.txt
+pip install -r requirements.txt
 
 # 启动服务（默认 127.0.0.1，端口读取数据库配置，初始为 8000）
 python -m app.main
