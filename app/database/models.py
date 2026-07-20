@@ -22,6 +22,7 @@ class Task(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     alerts: Mapped[list["Alert"]] = relationship(back_populates="task")
+    ai_reviews: Mapped[list["AiReview"]] = relationship(back_populates="task")
 
 
 class Setting(Base):
@@ -70,9 +71,33 @@ class Alert(Base):
     score: Mapped[float] = mapped_column(Float, default=0.0)
     matched_rules: Mapped[str] = mapped_column(Text, default="[]")
     ai_judgement: Mapped[str] = mapped_column(String(64), default="")
+    ai_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     ai_reason: Mapped[str] = mapped_column(Text, default="")
     reason: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String(32), default="new", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
     task: Mapped[Task | None] = relationship(back_populates="alerts")
+
+
+class AiReview(Base):
+    """AI 辅助研判记录；正常请求和待人工复核请求也必须持久化。"""
+
+    __tablename__ = "ai_reviews"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    task_id: Mapped[int | None] = mapped_column(ForeignKey("tasks.id"), nullable=True, index=True)
+    alert_id: Mapped[int | None] = mapped_column(ForeignKey("alerts.id"), nullable=True, index=True)
+    request_summary: Mapped[str] = mapped_column(Text, default="{}")
+    original_score: Mapped[float] = mapped_column(Float, default=0.0)
+    matched_rules: Mapped[str] = mapped_column(Text, default="[]")
+    judgement: Mapped[str] = mapped_column(String(64), default="manual_review", index=True)
+    attack_type: Mapped[str] = mapped_column(String(64), default="Unknown")
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    reason: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(32), default="completed", index=True)
+    model: Mapped[str] = mapped_column(String(128), default="")
+    prompt_version: Mapped[str] = mapped_column(String(32), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+    task: Mapped[Task | None] = relationship(back_populates="ai_reviews")

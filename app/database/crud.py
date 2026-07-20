@@ -7,7 +7,7 @@ from sqlalchemy import desc, func, text
 from sqlalchemy.orm import Session
 
 from app.config import DEFAULT_SETTINGS
-from app.database.models import Alert, Report, Setting, Task
+from app.database.models import AiReview, Alert, Report, Setting, Task
 
 
 def _json_dumps(value: Any) -> str:
@@ -145,6 +145,42 @@ def get_alert(db: Session, alert_id: int) -> Alert | None:
     return db.get(Alert, alert_id)
 
 
+def create_ai_review(db: Session, **review_data: Any) -> AiReview:
+    """保存 AI 研判结果；请求摘要和命中规则以 JSON 文本存储。"""
+    for field in ("request_summary", "matched_rules"):
+        value = review_data.get(field)
+        if value is not None and not isinstance(value, str):
+            review_data[field] = _json_dumps(value)
+    review = AiReview(**review_data)
+    db.add(review)
+    db.commit()
+    db.refresh(review)
+    return review
+
+
+def list_ai_reviews(
+    db: Session,
+    *,
+    task_id: int | None = None,
+    status: str | None = None,
+    judgement: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> list[AiReview]:
+    query = db.query(AiReview)
+    if task_id is not None:
+        query = query.filter(AiReview.task_id == task_id)
+    if status:
+        query = query.filter(AiReview.status == status)
+    if judgement:
+        query = query.filter(AiReview.judgement == judgement)
+    return query.order_by(desc(AiReview.created_at), desc(AiReview.id)).offset(offset).limit(limit).all()
+
+
+def get_ai_review(db: Session, review_id: int) -> AiReview | None:
+    return db.get(AiReview, review_id)
+
+
 def get_stats(db: Session) -> dict[str, Any]:
     """从告警和任务表动态计算 WebUI 需要展示的统计数据。"""
     total_alerts = db.query(func.count(Alert.id)).scalar() or 0
@@ -246,6 +282,7 @@ def get_report(db: Session, report_id: int) -> Report | None:
 def reset_database(db: Session) -> dict[str, int]:
     """清空测试数据并保留数据库表结构。"""
     deleted_reports = db.query(Report).delete()
+    deleted_ai_reviews = db.query(AiReview).delete()
     deleted_alerts = db.query(Alert).delete()
     deleted_tasks = db.query(Task).delete()
 
@@ -253,13 +290,14 @@ def reset_database(db: Session) -> dict[str, int]:
         text("SELECT name FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'")
     ).first()
     if has_sequence is not None:
-        db.execute(text("DELETE FROM sqlite_sequence WHERE name IN ('alerts', 'tasks', 'reports')"))
+        db.execute(text("DELETE FROM sqlite_sequence WHERE name IN ('alerts', 'tasks', 'reports', 'ai_reviews')"))
 
     db.commit()
     return {
         "deleted_alerts": deleted_alerts,
         "deleted_tasks": deleted_tasks,
         "deleted_reports": deleted_reports,
+        "deleted_ai_reviews": deleted_ai_reviews,
     }
 
 
@@ -325,8 +363,33 @@ def alert_to_dict(alert: Alert) -> dict[str, Any]:
         "score": alert.score,
         "matched_rules": matched_rules,
         "ai_judgement": alert.ai_judgement,
+        "ai_confidence": alert.ai_confidence,
         "ai_reason": alert.ai_reason,
         "reason": alert.reason,
         "status": alert.status,
         "created_at": alert.created_at.isoformat() if alert.created_at else None,
+    }
+
+
+def ai_review_to_dict(review: AiReview) -> dict[str, Any]:
+    """将 AI 研判记录转换为接口响应。"""
+    try:
+        summary = json.loads(review.request_summary)
+    except json.JSONDecodeError:
+        summary = review.request_summary
+    return {
+        "id": review.id,
+        "task_id": review.task_id,
+        "alert_id": review.alert_id,
+        "request_summary": summary,
+        "original_score": review.original_score,
+        "matched_rules": _json_loads_list(review.matched_rules),
+        "judgement": review.judgement,
+        "attack_type": review.attack_type,
+        "confidence": review.confidence,
+        "reason": review.reason,
+        "status": review.status,
+        "model": review.model,
+        "prompt_version": review.prompt_version,
+        "created_at": review.created_at.isoformat() if review.created_at else None,
     }
