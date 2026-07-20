@@ -6,6 +6,7 @@
 具体约定见仓库根目录的 API.md。
 """
 
+import asyncio
 from datetime import datetime
 from importlib.util import find_spec
 from pathlib import Path
@@ -348,7 +349,17 @@ async def analyze_pcap(
             packet_parser=parse_http_request,
             rule_engine=RuleEngine.from_dir(RULES_DIR),
         )
-        result = analyzer.analyze(upload_path, task_target=filename)
+        # pyshark 内部依赖 asyncio：放到独立线程执行，并给该线程新建事件循环，
+        # 既避开异步路由正在运行的循环，也满足 pyshark 对 get_event_loop 的要求。
+        def _analyze():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return analyzer.analyze(upload_path, filename)
+            finally:
+                loop.close()
+
+        result = await asyncio.to_thread(_analyze)
 
     return _pcap_result_to_dict(result)
 

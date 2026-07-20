@@ -100,3 +100,36 @@ def test_ai_review_generates_alert():
     ai_alerts = [a for a in alerts if a.ai_judgement == "malicious"]
     assert ai_alerts, "AI 判恶意后应生成告警"
     assert "SQL Injection" in ai_alerts[0].attack_type
+
+
+def test_upload_endpoint_full_flow():
+    """走正式 HTTP 上传流程（POST /api/pcap/analyze），防止异步事件循环回归。"""
+    from fastapi.testclient import TestClient
+
+    from app.database.db import get_db
+    from app.main import app
+
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    Base.metadata.create_all(engine)
+    testing_session = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+
+    def _db():
+        db = testing_session()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = _db
+    try:
+        client = TestClient(app)
+        with (PCAP_DIR / "sample_xss.pcap").open("rb") as f:
+            resp = client.post("/api/pcap/analyze",
+                               files={"file": ("sample_xss.pcap", f, "application/octet-stream")})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "completed", body
+    assert body["alerts"] >= 1
