@@ -10,7 +10,7 @@ from datetime import datetime
 from importlib.util import find_spec
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any
+from typing import Any, Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
@@ -24,6 +24,12 @@ from app.database import crud
 from app.database.db import get_db
 from app.services import llm
 from app.capture.pcap_analyzer import PcapAnalyzer
+from app.capture.live_capture import (
+    CaptureConfigurationError,
+    InterfaceDiscoveryError,
+    LiveCaptureManager,
+    list_tshark_interfaces,
+)
 from app.protocol.packet_parser import parse_http_request
 from app.detection.rule_engine import RuleEngine
 
@@ -145,7 +151,7 @@ class LlmTestRequest(BaseModel):
 
 class CaptureStartRequest(BaseModel):
     interface: str = ""
-    target_type: str = Field(default="ip", examples=["ip", "domain"])
+    target_type: Literal["ip", "domain"] = Field(default="ip", examples=["ip", "domain"])
     target: str = ""
     port: int = Field(default=80, ge=1, le=65535)
 
@@ -299,22 +305,48 @@ def test_llm(request: LlmTestRequest, db: Session = Depends(get_db)) -> dict[str
     return result
 
 
-# ---------- 实时抓包（待实现） ----------
+# ---------- 实时抓包 ----------
+
+
+live_capture_manager = LiveCaptureManager()
 
 
 @router.get("/capture/interfaces")
 def list_interfaces() -> dict[str, Any]:
-    raise not_implemented("live_capture", "实时抓包模块尚未实现，暂时无法列出网卡")
+    try:
+        return {"interfaces": list_tshark_interfaces()}
+    except InterfaceDiscoveryError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @router.post("/capture/start")
-def start_capture(request: CaptureStartRequest) -> dict[str, Any]:
-    raise not_implemented("live_capture", "实时抓包模块尚未实现，暂时无法启动抓包任务")
+def start_capture(
+    request: CaptureStartRequest,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    try:
+        task = live_capture_manager.start(
+            db,
+            interface=request.interface,
+            target_type=request.target_type,
+            target=request.target,
+            port=request.port,
+        )
+    except CaptureConfigurationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"unable to start capture: {exc}") from exc
+    return crud.task_to_dict(task)
 
 
 @router.post("/capture/stop")
 def stop_capture(request: CaptureStopRequest) -> dict[str, Any]:
-    raise not_implemented("live_capture", "实时抓包模块尚未实现，暂时无法停止抓包任务")
+    stopped = live_capture_manager.stop(request.task_id)
+    if stopped is None:
+        raise HTTPException(status_code=404, detail="Active capture task not found")
+    if not stopped:
+        raise HTTPException(status_code=409, detail="Capture task is already stopping")
+    return {"task_id": request.task_id, "status": "stopping"}
 
 
 
