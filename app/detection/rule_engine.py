@@ -15,6 +15,22 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote
+
+
+# 匹配前归一化时的最大扫描长度（防超长 body 拖慢与 ReDoS）
+MAX_SCAN_LEN = 8192
+
+
+def _normalize(text: str) -> str:
+    """匹配前归一化：截断超长、去 NUL、URL 解码（最多两轮防双重编码），抵御编码绕过。"""
+    text = text[:MAX_SCAN_LEN].replace("\x00", "")
+    for _ in range(2):
+        decoded = unquote(text)
+        if decoded == text:
+            break
+        text = decoded
+    return text
 
 
 @dataclass
@@ -98,11 +114,13 @@ class RuleEngine:
         """取出请求中某个字段的可扫描文本；user_agent 和 headers 需要展开。"""
         if field_name == "user_agent":
             headers = request.get("headers") or {}
-            return str(headers.get("User-Agent", ""))
-        if field_name == "headers":
+            raw = str(headers.get("User-Agent", ""))
+        elif field_name == "headers":
             headers = request.get("headers") or {}
-            return " ".join(f"{k}: {v}" for k, v in headers.items())
-        return str(request.get(field_name, ""))
+            raw = " ".join(f"{k}: {v}" for k, v in headers.items())
+        else:
+            raw = str(request.get(field_name, ""))
+        return _normalize(raw)
 
     def match(self, request: dict[str, Any]) -> list[RuleMatch]:
         """对单个请求执行全部规则匹配，每条规则最多命中一次。
