@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -18,7 +18,7 @@ class Task(Base):
     packet_count: Mapped[int] = mapped_column(Integer, default=0)
     http_count: Mapped[int] = mapped_column(Integer, default=0)
     alert_count: Mapped[int] = mapped_column(Integer, default=0)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     alerts: Mapped[list["Alert"]] = relationship(back_populates="task")
@@ -49,7 +49,7 @@ class Report(Base):
     key_findings: Mapped[str] = mapped_column(Text, default="[]")
     recommendations: Mapped[str] = mapped_column(Text, default="[]")
     error_message: Mapped[str] = mapped_column(Text, default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), index=True)
 
 
 class Alert(Base):
@@ -75,7 +75,7 @@ class Alert(Base):
     ai_reason: Mapped[str] = mapped_column(Text, default="")
     reason: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String(32), default="new", index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), index=True)
 
     task: Mapped[Task | None] = relationship(back_populates="alerts")
 
@@ -98,6 +98,6 @@ class AiReview(Base):
     status: Mapped[str] = mapped_column(String(32), default="completed", index=True)
     model: Mapped[str] = mapped_column(String(128), default="")
     prompt_version: Mapped[str] = mapped_column(String(32), default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), index=True)
 
     task: Mapped[Task | None] = relationship(back_populates="ai_reviews")

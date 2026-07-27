@@ -4,7 +4,7 @@ import logging
 from collections import defaultdict, deque
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -126,7 +126,7 @@ class PcapAnalyzer:
                 packet_count=packet_count,
                 http_count=http_count,
                 alert_count=alert_count,
-                finished_at=datetime.utcnow(),
+                finished_at=datetime.now(UTC),
             )
 
             return PcapAnalysisResult(
@@ -146,7 +146,7 @@ class PcapAnalyzer:
                 packet_count=packet_count,
                 http_count=http_count,
                 alert_count=alert_count,
-                finished_at=datetime.utcnow(),
+                finished_at=datetime.now(UTC),
             )
 
             return PcapAnalysisResult(
