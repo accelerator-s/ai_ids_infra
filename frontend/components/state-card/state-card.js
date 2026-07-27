@@ -7,7 +7,7 @@ const KINDS = {
   pending: { icon: "wrench", cls: "state-card--pending" },
 };
 
-// 向 host 渲染主题化的空态 / 加载 / 错误 / 待实现占位，
+// 向 host 渲染主题化的空态 / 加载 / 错误 / 未就绪占位，
 // 让缺数据和模块未完成的页面看起来是有意为之的状态。
 export async function renderState(host, { kind = "empty", title = "", detail = "", retry, retryLabel = "重试" } = {}) {
   const spec = KINDS[kind] || KINDS.empty;
@@ -29,7 +29,7 @@ export async function renderState(host, { kind = "empty", title = "", detail = "
   if (kind === "pending") {
     const tag = document.createElement("span");
     tag.className = "state-card__tag";
-    tag.textContent = "模块待实现";
+    tag.textContent = "功能未就绪";
     card.append(tag);
   }
 

@@ -26,6 +26,16 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="AI-IDS-Infrastructure", version="0.1.0", lifespan=lifespan)
 app.include_router(router)
 
+
+@app.middleware("http")
+async def disable_frontend_cache(request, call_next):
+    """前端无构建步骤，禁止缓存以确保重启后立即加载最新界面资源。"""
+    response = await call_next(request)
+    if not request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+    return response
+
 frontend_dir = BASE_DIR / "frontend"
 if frontend_dir.exists():
     app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")

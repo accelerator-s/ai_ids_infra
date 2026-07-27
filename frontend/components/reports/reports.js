@@ -1,5 +1,6 @@
 import { hydrateIcons } from "../../core/icons.js";
 import { createSelect } from "../../core/select.js";
+import { moduleReady as healthModuleReady, moduleReason, moduleState, onHealth } from "../../core/health.js";
 import { renderState } from "../state-card/state-card.js";
 
 export async function mount(root, ctx) {
@@ -17,7 +18,8 @@ export async function mount(root, ctx) {
   const list = root.querySelector("[data-list]");
 
   let checking = false;
-  let moduleReady = false;
+  let moduleLoaded = false;
+  let healthReady = false;
 
   function showMsg(text, ok) {
     msg.hidden = !text;
@@ -27,22 +29,22 @@ export async function mount(root, ctx) {
 
   // 用报告列表接口探测模块状态：模块未实现时后端返回 501。
   async function checkModule() {
-    if (checking) return;
+    if (checking || !healthReady) return;
     checking = true;
     ui.hidden = true;
     await renderState(gate, { kind: "loading", title: "正在检测 AI 报告模块" });
     try {
       const data = await ctx.api.reports();
-      moduleReady = true;
+      moduleLoaded = true;
       gate.innerHTML = "";
       ui.hidden = false;
       renderReports(data.items || []);
       loadTasks();
     } catch (err) {
-      moduleReady = false;
+      moduleLoaded = false;
       await renderState(gate, {
-        kind: err.status === 501 ? "pending" : "error",
-        title: err.status === 501 ? "AI 评测报告模块开发中" : "模块状态检测失败",
+        kind: "error",
+        title: "AI 评测报告运行异常",
         detail: err.message,
         retry: checkModule,
         retryLabel: "重新检测",
@@ -106,9 +108,30 @@ export async function mount(root, ctx) {
   });
 
   ctx.bus.on("route", (id) => {
-    if (id === "reports" && !moduleReady) checkModule();
+    if (id === "reports" && healthReady && !moduleLoaded) checkModule();
   });
-  checkModule();
+  onHealth(async (data) => {
+    healthReady = Boolean(data && healthModuleReady("ai_report"));
+    if (healthReady) {
+      if (!moduleLoaded) await checkModule();
+      return;
+    }
+    moduleLoaded = false;
+    ui.hidden = true;
+    await renderState(gate, {
+      kind: "error",
+      title: data === null
+        ? "服务不可达"
+        : moduleState("ai_report") === "not_configured"
+          ? "AI 评测报告尚未配置"
+          : moduleState("ai_report") === "not_implemented"
+            ? "AI 评测报告尚未实现"
+            : "AI 评测报告运行异常",
+      detail: data === null
+        ? "后端健康检查没有返回结果。"
+        : moduleReason("ai_report") || "AI 报告运行依赖检查未通过。",
+    });
+  });
 }
 
 function renderReportItem(report) {

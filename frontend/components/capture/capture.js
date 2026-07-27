@@ -33,7 +33,7 @@ export async function mount(root, ctx) {
     msg.className = `capture__msg ${text ? (ok ? "is-ok" : "is-err") : ""}`;
   }
 
-  // 直接请求网卡列表来探测模块状态：模块未实现时后端返回 501。
+  // 直接请求网卡列表来读取模块及其运行依赖的实际状态。
   async function checkModule() {
     if (checking) return;
     checking = true;
@@ -47,12 +47,13 @@ export async function mount(root, ctx) {
       fillInterfaces(data.interfaces || []);
     } catch (err) {
       moduleReady = false;
+      const missingDependency = err.code === "missing_dependency";
       await renderState(gate, {
-        kind: err.status === 501 ? "pending" : "error",
-        title: err.status === 501 ? "实时抓包模块开发中" : "模块状态检测失败",
+        kind: "error",
+        title: missingDependency
+          ? "实时抓包缺少运行依赖"
+          : "实时抓包运行异常",
         detail: err.message,
-        retry: checkModule,
-        retryLabel: "重新检测",
       });
     } finally {
       checking = false;

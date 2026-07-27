@@ -70,7 +70,7 @@ def list_tshark_interfaces(timeout: float = 5.0) -> list[dict[str, str]]:
             check=True,
         )
     except FileNotFoundError as exc:
-        raise InterfaceDiscoveryError("tshark is not installed or not in PATH") from exc
+        raise InterfaceDiscoveryError("缺少运行依赖 tshark，或 tshark 未加入 PATH") from exc
     except subprocess.TimeoutExpired as exc:
         raise InterfaceDiscoveryError("tshark interface discovery timed out") from exc
     except subprocess.CalledProcessError as exc:
