@@ -20,7 +20,7 @@ import pyshark
 from sqlalchemy.orm import Session
 
 from app.ai import request_analyzer
-from app.config import RULES_DIR
+from app.config import RULES_DIR, TSHARK_PATH
 from app.database import crud
 from app.database.db import SessionLocal
 from app.detection.behavior_detector import BehaviorDetector, BehaviorMatch
@@ -194,7 +194,10 @@ class LiveCaptureSession:
             db = self.session_factory()
             if self.settings is None:
                 self.settings = crud.get_settings(db)
-            self.capture = self.capture_factory(interface=self.interface, bpf_filter=self.capture_filter)
+            capture_kwargs: dict[str, Any] = {"interface": self.interface, "bpf_filter": self.capture_filter}
+            if TSHARK_PATH and self.capture_factory is pyshark.LiveCapture:
+                capture_kwargs["tshark_path"] = TSHARK_PATH
+            self.capture = self.capture_factory(**capture_kwargs)
             if not self.stop_event.is_set():
                 for packet in self.capture.sniff_continuously():
                     if self.stop_event.is_set():
