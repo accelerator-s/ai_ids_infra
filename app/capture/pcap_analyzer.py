@@ -12,6 +12,7 @@ import pyshark
 from sqlalchemy.orm import Session
 
 from app.ai import request_analyzer
+from app.config import TSHARK_PATH
 from app.database import crud
 from app.detection.behavior_detector import BehaviorDetector
 from app.detection.risk_score import calculate_risk
@@ -79,7 +80,10 @@ class PcapAnalyzer:
                 raise FileNotFoundError(f"pcap file not found: {path}")
 
             # 不保留已读取数据包，避免大文件分析持续占用内存。
-            capture = pyshark.FileCapture(str(path), keep_packets=False)
+            capture_kwargs: dict[str, Any] = {"keep_packets": False}
+            if TSHARK_PATH:
+                capture_kwargs["tshark_path"] = TSHARK_PATH
+            capture = pyshark.FileCapture(str(path), **capture_kwargs)
 
             try:
                 for packet in capture:

@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -7,6 +8,9 @@ DATABASE_URL = f"sqlite:///{DATABASE_PATH.as_posix()}"
 
 # 规则库目录：rule_engine 从这里加载所有 *.json 规则文件
 RULES_DIR = BASE_DIR / "rules"
+
+# 从系统 PATH 自动查找 tshark，找不到则留 None 让 PyShark 使用默认路径
+TSHARK_PATH = shutil.which("tshark")
 
 DEFAULT_RISK_THRESHOLDS = {
     "low": 20,
