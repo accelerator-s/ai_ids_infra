@@ -49,6 +49,50 @@ def test_status_format():
     assert resp.json().get("status") == "ok"
 
 
+def test_status_reports_missing_tshark_as_unavailable(monkeypatch):
+    from app.api import routes
+
+    monkeypatch.setattr(routes.shutil, "which", lambda name: None)
+    modules = _client().get("/api/status").json()["modules"]
+    assert modules["live_capture"]["ready"] is False
+    assert modules["pcap_analyzer"]["ready"] is False
+    assert "tshark" in modules["live_capture"]["reason"]
+    assert modules["live_capture"]["state"] == "missing_dependency"
+    assert modules["pcap_analyzer"]["dependency"] == "tshark"
+    assert modules["risk_score"]["ready"] is True
+    assert modules["behavior_detector"]["ready"] is True
+    assert modules["packet_parser"]["ready"] is True
+    assert modules["ai_analyzer"]["ready"] is False
+    assert modules["ai_report"]["ready"] is False
+    assert "大模型配置不完整" in modules["ai_analyzer"]["reason"]
+
+
+def test_status_checks_capture_interfaces(monkeypatch):
+    from app.api import routes
+
+    monkeypatch.setattr(routes.shutil, "which", lambda name: "/usr/bin/tshark")
+    monkeypatch.setattr(routes, "list_tshark_interfaces", lambda: [{"name": "eth0"}])
+    modules = _client().get("/api/status").json()["modules"]
+    assert modules["live_capture"] == {
+        "ready": True,
+        "tshark_path": "/usr/bin/tshark",
+        "interface_count": 1,
+    }
+    assert modules["pcap_analyzer"]["ready"] is True
+
+
+def test_capture_interfaces_reports_missing_dependency(monkeypatch):
+    from app.api import routes
+
+    def missing_tshark():
+        raise routes.InterfaceDiscoveryError("缺少运行依赖 tshark，或 tshark 未加入 PATH")
+
+    monkeypatch.setattr(routes, "list_tshark_interfaces", missing_tshark)
+    response = _client().get("/api/capture/interfaces")
+    assert response.status_code == 503
+    assert response.json()["detail"]["code"] == "missing_dependency"
+
+
 def test_task_roundtrip():
     client = _client()
     created = client.post("/api/tasks", json={"task_type": "pcap", "target": "demo.pcap"})
@@ -72,3 +116,64 @@ def test_stats_format():
     resp = _client().get("/api/stats")
     assert resp.status_code == 200
     assert isinstance(resp.json(), dict)
+
+
+def test_manual_review_malicious_creates_linked_alert():
+    client = _client()
+    task = client.post("/api/tasks", json={"task_type": "pcap", "target": "review.pcap"}).json()
+
+    from app.database import crud
+    from app.database.db import get_db
+
+    db = next(app.dependency_overrides[get_db]())
+    review = crud.create_ai_review(
+        db,
+        task_id=task["id"],
+        request_summary={"src_ip": "10.0.0.8", "dst_ip": "10.0.0.2", "method": "GET", "path": "/search", "query": "q='"},
+        original_score=28,
+        matched_rules=["sqli-003"],
+        judgement="manual_review",
+        attack_type="SQL Injection",
+        reason="大模型服务尚未完整配置",
+        status="pending_review",
+    )
+    response = client.post(
+        f"/api/ai/reviews/{review.id}/decision",
+        json={"judgement": "malicious", "attack_type": "SQL Injection", "reason": "请求中存在永真条件与注释符组合"},
+    )
+    assert response.status_code == 200
+    decided = response.json()
+    assert decided["status"] == "completed"
+    assert decided["alert_id"] is not None
+    alert = client.get(f"/api/alerts/{decided['alert_id']}").json()
+    assert alert["risk_level"] == "low"
+    assert alert["src_ip"] == "10.0.0.8"
+
+    duplicate = client.post(
+        f"/api/ai/reviews/{review.id}/decision",
+        json={"judgement": "benign", "reason": "重复处理"},
+    )
+    assert duplicate.status_code == 409
+
+
+def test_manual_review_benign_does_not_create_alert():
+    client = _client()
+    from app.database import crud
+    from app.database.db import get_db
+
+    db = next(app.dependency_overrides[get_db]())
+    review = crud.create_ai_review(
+        db,
+        request_summary={"method": "GET", "path": "/health"},
+        original_score=22,
+        matched_rules=["generic-001"],
+        judgement="manual_review",
+        status="pending_review",
+    )
+    response = client.post(
+        f"/api/ai/reviews/{review.id}/decision",
+        json={"judgement": "benign", "reason": "已核对为内部健康检查请求"},
+    )
+    assert response.status_code == 200
+    assert response.json()["alert_id"] is None
+    assert response.json()["attack_type"] == "Normal"

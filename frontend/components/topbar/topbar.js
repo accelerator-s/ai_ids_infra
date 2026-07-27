@@ -22,6 +22,11 @@ const TITLES = {
     sub: "按攻击类型、风险等级和来源 IP 筛选告警，查看命中规则详情。",
     icon: "siren",
   },
+  reviews: {
+    title: "人工复核",
+    sub: "处理自动研判未完成的可疑请求，形成可追溯的人工结论。",
+    icon: "check",
+  },
   reports: {
     title: "AI 评测报告",
     sub: "对已完成的分析任务做汇总研判，输出风险概述和处置建议。",
@@ -35,7 +40,7 @@ const TITLES = {
 };
 
 // 判定核心链路是否就绪：数据库和规则库必须可用，其余模块缺失只降级提示。
-const CORE_MODULES = ["database", "rule_engine"];
+const CORE_MODULES = ["database", "rule_engine", "risk_score"];
 const OPTIONAL_MODULES = [
   "behavior_detector",
   "packet_parser",
@@ -93,10 +98,10 @@ export async function mount(root, ctx) {
       health.title = "后端没有响应，请确认服务进程和访问地址";
     } else if (!coreReady) {
       healthText.textContent = "核心模块异常";
-      health.title = "数据库或规则库不可用，详情见总览页";
+      health.title = "数据库、规则检测或风险评分不可用，详情见总览页";
     } else if (pendingCount) {
-      healthText.textContent = `${pendingCount} 个模块待实现`;
-      health.title = "核心链路可用，部分模块开发中，详情见总览页";
+      healthText.textContent = `${pendingCount} 项功能未就绪`;
+      health.title = "核心链路可用，部分模块的实现或运行依赖未就绪，详情见总览页";
     } else {
       healthText.textContent = "服务正常";
       health.title = "全部模块就绪";

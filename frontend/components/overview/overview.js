@@ -18,7 +18,7 @@ const MODULES = [
   { name: "ai_report", label: "AI 报告" },
 ];
 
-const CORE_MODULES = ["database", "rule_engine"];
+const CORE_MODULES = ["database", "rule_engine", "risk_score"];
 
 export async function mount(root, ctx) {
   await hydrateIcons(root);
@@ -77,7 +77,7 @@ export async function mount(root, ctx) {
       const label = document.createElement("strong");
       label.textContent = meta.label;
       const stateText = document.createElement("span");
-      stateText.textContent = !reachable ? "未知" : ready ? "就绪" : "待实现";
+      stateText.textContent = !reachable ? "未知" : ready ? "就绪" : unavailableStateName(info?.state);
       item.append(dot, label, stateText);
       modulesHost.append(item);
     }
@@ -97,8 +97,9 @@ export async function mount(root, ctx) {
       return `核心链路异常：${broken}`;
     }
     if (readyCount < MODULES.length) {
-      const pending = MODULES.filter((m) => !modules[m.name]?.ready).map((m) => m.label);
-      return `数据库与规则库已就绪，可查看告警和统计。待实现模块：${pending.join("、")}，对应页面会展示开发进度提示。`;
+      const unavailable = MODULES.filter((m) => !modules[m.name]?.ready)
+        .map((m) => `${m.label}${modules[m.name]?.reason ? `（${modules[m.name].reason}）` : ""}`);
+      return `数据库与规则库已就绪，可查看告警和统计。未就绪功能：${unavailable.join("、")}。`;
     }
     return "全部模块就绪，检测链路完整可用。";
   }
@@ -269,6 +270,16 @@ export async function mount(root, ctx) {
     table.append(tbody);
     recentHost.append(table);
   }
+}
+
+function unavailableStateName(state) {
+  const names = {
+    missing_dependency: "缺少依赖",
+    not_configured: "未配置",
+    not_implemented: "未实现",
+    error: "异常",
+  };
+  return names[state] || "未就绪";
 }
 
 function formatTime(iso) {

@@ -5,17 +5,16 @@
 
 ## 约定
 
-### 待实现模块的响应
+### 功能未就绪的响应
 
-抓包、离线分析等模块尚未实现，对应接口统一返回 `501`，
-响应体带结构化错误信息，前端据此渲染"模块待实现"提示：
+已实现功能可能因缺少运行依赖或配置而未就绪。例如未安装
+`tshark` 时，网卡查询返回 `503`：
 
 ```json
 {
   "detail": {
-    "code": "not_implemented",
-    "module": "live_capture",
-    "message": "实时抓包模块尚未实现，暂时无法列出网卡"
+    "code": "missing_dependency",
+    "message": "缺少运行依赖 tshark，或 tshark 未加入 PATH"
   }
 }
 ```
@@ -38,10 +37,10 @@
 | POST | `/api/config` | 保存运行配置 | 可用 |
 | POST | `/api/llm/models` | 拉取大模型列表 | 可用 |
 | POST | `/api/llm/test` | 测试大模型连通 | 可用 |
-| GET | `/api/capture/interfaces` | 列出可监听网卡 | 待实现 |
-| POST | `/api/capture/start` | 启动抓包任务 | 待实现 |
-| POST | `/api/capture/stop` | 停止抓包任务 | 待实现 |
-| POST | `/api/pcap/analyze` | 上传并分析 pcap | 待实现 |
+| GET | `/api/capture/interfaces` | 列出可监听网卡 | 可用（需 tshark） |
+| POST | `/api/capture/start` | 启动抓包任务 | 可用（需 tshark） |
+| POST | `/api/capture/stop` | 停止抓包任务 | 可用 |
+| POST | `/api/pcap/analyze` | 上传并分析 pcap | 可用（需 tshark） |
 | GET | `/api/reports` | 报告列表（可筛选） | 可用 |
 | GET | `/api/reports/{report_id}` | 报告详情 | 可用 |
 | POST | `/api/reports/generate` | 生成评测报告 | 可用 |
@@ -59,7 +58,8 @@
 ### GET /api/status
 
 返回服务信息、各模块就绪情况和大模型配置摘要。WebUI 每 15 秒轮询一次。
-模块就绪情况按实现文件是否存在自动检测，新模块落地后无需修改此接口。
+模块状态通过数据库查询、规则加载、轻量自检、运行依赖与必需配置检查生成。
+`state` 可为 `missing_dependency`、`not_configured`、`not_implemented` 或 `error`。
 
 ```json
 {
@@ -153,9 +153,9 @@
 { "message": "……", "elapsed_ms": 832.5 }
 ```
 
-## 实时抓包（待实现）
+## 实时抓包
 
-模块文件：`app/capture/live_capture.py`。以下接口目前均返回 501。
+模块文件：`app/capture/live_capture.py`，运行时需要 `tshark`。
 
 ### GET /api/capture/interfaces
 
@@ -186,7 +186,7 @@
 { "task_id": 3 }
 ```
 
-## pcap 离线分析（待实现）
+## pcap 离线分析
 
 模块文件：`app/capture/pcap_analyzer.py`。
 
@@ -194,7 +194,7 @@
 
 以 `multipart/form-data` 上传 pcap 文件（字段名 `file`），
 创建 `pcap` 类型的分析任务，解析 HTTP 请求并执行规则检测。
-预期响应包含任务 ID 与解析统计。目前返回 501。
+响应包含任务 ID 与解析统计；运行时需要 `tshark`。
 
 ## AI 辅助研判
 
@@ -214,6 +214,22 @@ AI 判定恶意才生成告警，判定正常仍保留研判记录，调用失�
 
 查询单条研判详情，包含请求摘要、原始评分、命中规则、AI 结论、攻击类型、
 置信度、理由及关联告警 ID。记录不存在时返回 404。
+
+### POST /api/ai/reviews/{review_id}/decision
+
+对 `pending_review` 记录提交人工复核结论。
+
+```json
+{
+  "judgement": "malicious",
+  "attack_type": "SQL Injection",
+  "reason": "请求中存在永真条件与注释符组合"
+}
+```
+
+`judgement` 只能为 `malicious` 或 `benign`。恶意结论必须填写
+`attack_type`，提交后会在同一事务中生成告警并回填 `alert_id`；
+正常结论只完成复核记录。已处理记录重复提交返回 409。
 
 ## AI 评测报告
 

@@ -1,6 +1,6 @@
 // 后端 JSON API 的轻量封装，只负责传输和错误归一化。
 // 路由定义见仓库根目录 API.md；未实现的模块后端会返回 501，
-// 这里把结构化错误透传给页面，由页面渲染主题化的待实现提示。
+// 这里把结构化错误透传给页面，由页面展示具体的未就绪原因。
 
 export const RISK_LEVELS = ["critical", "high", "medium", "low", "normal"];
 
@@ -78,6 +78,7 @@ export const api = {
   alert: (id) => request("GET", `/api/alerts/${id}`),
   aiReviews: (params) => request("GET", withQuery("/api/ai/reviews", params)),
   aiReview: (id) => request("GET", `/api/ai/reviews/${id}`),
+  decideAiReview: (id, payload) => request("POST", `/api/ai/reviews/${id}/decision`, payload),
   stats: () => request("GET", "/api/stats"),
 
   reports: () => request("GET", "/api/reports"),

@@ -1,12 +1,7 @@
-"""后端 API 路由。
-
-已可用：状态查询、运行配置、大模型连通、AI 评测报告、任务、告警、
-统计、开发辅助、pcap 离线分析。
-待实现：实时抓包，相关路由统一返回 501，
-具体约定见仓库根目录的 API.md。
-"""
+"""后端 API 路由：状态与配置、抓包、pcap 分析、检测结果、人工复核及报告。"""
 
 import asyncio
+import shutil
 from datetime import datetime
 from importlib.util import find_spec
 from pathlib import Path
@@ -165,6 +160,12 @@ class ReportGenerateRequest(BaseModel):
     task_id: int
 
 
+class ManualReviewRequest(BaseModel):
+    judgement: Literal["malicious", "benign"]
+    attack_type: str = Field(default="", max_length=64)
+    reason: str = Field(..., min_length=2, max_length=2000)
+
+
 class ResetDatabaseRequest(BaseModel):
     confirm: bool = False
 
@@ -180,7 +181,7 @@ def _rule_engine_status() -> dict[str, Any]:
         files = len(list(RULES_DIR.glob("*.json")))
         return {"ready": True, "rule_count": len(rules), "rule_files": files}
     except Exception as exc:
-        return {"ready": False, "reason": f"规则库加载失败：{exc}"}
+        return {"ready": False, "state": "error", "reason": f"规则库加载失败：{exc}"}
 
 
 def _database_status(db: Session) -> dict[str, Any]:
@@ -188,7 +189,97 @@ def _database_status(db: Session) -> dict[str, Any]:
         db.execute(text("SELECT 1"))
         return {"ready": True}
     except Exception as exc:
-        return {"ready": False, "reason": str(exc)}
+        return {"ready": False, "state": "error", "reason": str(exc)}
+
+
+def _tshark_status() -> dict[str, Any]:
+    """检查抓包与 pcap 解析共用的 tshark 运行时依赖。"""
+    path = shutil.which("tshark")
+    if path is None:
+        return {
+            "ready": False,
+            "state": "missing_dependency",
+            "dependency": "tshark",
+            "reason": "缺少运行依赖 tshark，或 tshark 未加入 PATH",
+        }
+    return {"ready": True, "tshark_path": path}
+
+
+def _live_capture_status(tshark: dict[str, Any]) -> dict[str, Any]:
+    """实时抓包除了 tshark 可执行文件，还必须能成功发现监听网卡。"""
+    if not tshark["ready"]:
+        return dict(tshark)
+    try:
+        interfaces = list_tshark_interfaces()
+    except InterfaceDiscoveryError as exc:
+        return {"ready": False, "state": "error", "reason": str(exc)}
+    return {
+        "ready": True,
+        "tshark_path": tshark["tshark_path"],
+        "interface_count": len(interfaces),
+    }
+
+
+def _risk_score_status() -> dict[str, Any]:
+    """执行无规则命中的最小评分自检。"""
+    try:
+        from app.detection.risk_score import calculate_risk
+
+        result = calculate_risk([])
+        if result.score != 0 or result.level != "normal" or result.need_ai_filter:
+            raise RuntimeError("风险评分基线结果异常")
+        return {"ready": True}
+    except Exception as exc:
+        return {"ready": False, "state": "error", "reason": f"风险评分自检失败：{exc}"}
+
+
+def _behavior_detector_status() -> dict[str, Any]:
+    """初始化行为检测器并执行空输入自检。"""
+    try:
+        from app.detection.behavior_detector import BehaviorDetector
+
+        if BehaviorDetector().detect([]) != []:
+            raise RuntimeError("行为检测空输入结果异常")
+        return {"ready": True}
+    except Exception as exc:
+        return {"ready": False, "state": "error", "reason": f"行为检测自检失败：{exc}"}
+
+
+def _packet_parser_status() -> dict[str, Any]:
+    """校验协议解析入口完整且能安全处理非 HTTP 输入。"""
+    try:
+        from app.protocol import packet_parser
+
+        functions = (
+            packet_parser.parse_http_request,
+            packet_parser.parse_http_response_status,
+            packet_parser.get_tcp_stream_id,
+        )
+        if not all(callable(function) for function in functions):
+            raise RuntimeError("协议解析入口不完整")
+        empty_packet = object()
+        if any(function(empty_packet) is not None for function in functions):
+            raise RuntimeError("非 HTTP 输入基线结果异常")
+        return {"ready": True}
+    except Exception as exc:
+        return {"ready": False, "state": "error", "reason": f"协议解析自检失败：{exc}"}
+
+
+def _llm_feature_status(settings: dict[str, Any]) -> dict[str, Any]:
+    """AI 功能的健康轮询只校验必需配置，不发起付费推理请求。"""
+    required = {
+        "服务地址": str(settings.get("llm.base_url", "")).strip(),
+        "访问密钥": str(settings.get("llm.api_key", "")).strip(),
+        "模型": str(settings.get("llm.model", "")).strip(),
+    }
+    missing = [label for label, value in required.items() if not value]
+    if missing:
+        return {
+            "ready": False,
+            "state": "not_configured",
+            "reason": f"大模型配置不完整：缺少{'、'.join(missing)}",
+        }
+    return {"ready": True, "configured": True}
 
 
 def _public_llm_config(settings: dict[str, Any]) -> dict[str, Any]:
@@ -204,15 +295,32 @@ def _public_llm_config(settings: dict[str, Any]) -> dict[str, Any]:
 def get_status(db: Session = Depends(get_db)) -> dict[str, Any]:
     """返回服务信息、各模块就绪情况和大模型配置摘要，供 WebUI 健康检查。"""
     modules: dict[str, Any] = {"database": _database_status(db)}
+    tshark = _tshark_status()
+    settings = crud.get_settings(db)
     for name, (module_path, label) in MODULE_SPECS.items():
         if name == "rule_engine":
             modules[name] = _rule_engine_status()
-        elif module_exists(module_path):
-            modules[name] = {"ready": True}
+        elif not module_exists(module_path):
+            modules[name] = {
+                "ready": False,
+                "state": "not_implemented",
+                "reason": f"{label}模块尚未实现",
+            }
+        elif name == "live_capture":
+            modules[name] = _live_capture_status(tshark)
+        elif name == "pcap_analyzer":
+            modules[name] = dict(tshark)
+        elif name == "risk_score":
+            modules[name] = _risk_score_status()
+        elif name == "behavior_detector":
+            modules[name] = _behavior_detector_status()
+        elif name == "packet_parser":
+            modules[name] = _packet_parser_status()
+        elif name in {"ai_analyzer", "ai_report"}:
+            modules[name] = _llm_feature_status(settings)
         else:
-            modules[name] = {"ready": False, "reason": f"{label}模块尚未实现"}
+            modules[name] = {"ready": True}
 
-    settings = crud.get_settings(db)
     return {
         "status": "ok",
         "service": SERVICE_NAME,
@@ -317,7 +425,13 @@ def list_interfaces() -> dict[str, Any]:
     try:
         return {"interfaces": list_tshark_interfaces()}
     except InterfaceDiscoveryError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        message = str(exc)
+        detail: str | dict[str, str] = message
+        status_code = 502
+        if "tshark" in message and ("PATH" in message or "运行依赖" in message):
+            status_code = 503
+            detail = {"code": "missing_dependency", "message": message}
+        raise HTTPException(status_code=status_code, detail=detail) from exc
 
 
 @router.post("/capture/start")
@@ -467,6 +581,32 @@ def get_ai_review(review_id: int, db: Session = Depends(get_db)) -> dict[str, An
     review = crud.get_ai_review(db, review_id)
     if review is None:
         raise HTTPException(status_code=404, detail="AI review not found")
+    return crud.ai_review_to_dict(review)
+
+
+@router.post("/ai/reviews/{review_id}/decision")
+def decide_ai_review(
+    review_id: int,
+    request: ManualReviewRequest,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """提交人工复核结论；判定恶意时同步生成并关联告警。"""
+    if request.judgement == "malicious" and not request.attack_type.strip():
+        raise HTTPException(status_code=422, detail="判定为恶意时必须填写攻击类型")
+    try:
+        review = crud.decide_ai_review(
+            db,
+            review_id,
+            judgement=request.judgement,
+            attack_type=request.attack_type.strip(),
+            reason=request.reason.strip(),
+        )
+    except crud.ReviewNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except crud.ReviewAlreadyDecidedError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except crud.ReviewDataError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return crud.ai_review_to_dict(review)
 
 

@@ -1,5 +1,5 @@
 import { hydrateIcons } from "../../core/icons.js";
-import { onHealth, moduleReady, moduleReason } from "../../core/health.js";
+import { onHealth, moduleReady, moduleReason, moduleState } from "../../core/health.js";
 import { renderState } from "../state-card/state-card.js";
 
 const TASK_STATUS_NAMES = {
@@ -49,10 +49,13 @@ export async function mount(root, ctx) {
       return;
     }
     form.hidden = true;
+    const missingDependency = moduleState("pcap_analyzer") === "missing_dependency";
     await renderState(gate, {
-      kind: "pending",
-      title: "pcap 离线分析模块开发中",
-      detail: moduleReason("pcap_analyzer") || "模块尚未实现，实现落地后此页面会自动启用。",
+      kind: "error",
+      title: missingDependency
+        ? "离线分析缺少运行依赖"
+        : "离线分析运行异常",
+      detail: moduleReason("pcap_analyzer") || "离线分析运行依赖检查未通过。",
     });
   });
 

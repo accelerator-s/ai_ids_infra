@@ -88,7 +88,7 @@
   color: var(--danger);
 }
 
-/* ---- 待实现 ---- */
+/* ---- 未就绪 ---- */
 
 .state-card--pending {
   border-style: dashed;

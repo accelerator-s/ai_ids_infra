@@ -23,6 +23,10 @@ export function moduleReason(name) {
   return (current && current.modules && current.modules[name]?.reason) || "";
 }
 
+export function moduleState(name) {
+  return (current && current.modules && current.modules[name]?.state) || "";
+}
+
 export function llmConfigured() {
   const llm = current?.llm;
   return Boolean(llm && llm.base_url && llm.model && llm.has_api_key);

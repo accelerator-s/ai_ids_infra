@@ -6,8 +6,20 @@ from typing import Any
 from sqlalchemy import desc, func, text
 from sqlalchemy.orm import Session
 
-from app.config import DEFAULT_SETTINGS
+from app.config import DEFAULT_RISK_THRESHOLDS, DEFAULT_SETTINGS
 from app.database.models import AiReview, Alert, Report, Setting, Task
+
+
+class ReviewNotFoundError(LookupError):
+    pass
+
+
+class ReviewAlreadyDecidedError(RuntimeError):
+    pass
+
+
+class ReviewDataError(ValueError):
+    pass
 
 
 def _json_dumps(value: Any) -> str:
@@ -179,6 +191,80 @@ def list_ai_reviews(
 
 def get_ai_review(db: Session, review_id: int) -> AiReview | None:
     return db.get(AiReview, review_id)
+
+
+def _risk_level_from_score(score: float) -> str:
+    if score >= DEFAULT_RISK_THRESHOLDS["critical"]:
+        return "critical"
+    if score >= DEFAULT_RISK_THRESHOLDS["high"]:
+        return "high"
+    if score >= DEFAULT_RISK_THRESHOLDS["medium"]:
+        return "medium"
+    if score >= DEFAULT_RISK_THRESHOLDS["low"]:
+        return "low"
+    return "normal"
+
+
+def decide_ai_review(
+    db: Session,
+    review_id: int,
+    *,
+    judgement: str,
+    attack_type: str,
+    reason: str,
+) -> AiReview:
+    """仅处理待复核记录；恶意结论与告警在同一事务中落库。"""
+    review = db.get(AiReview, review_id)
+    if review is None:
+        raise ReviewNotFoundError("人工复核记录不存在")
+    if review.status != "pending_review" or review.judgement != "manual_review":
+        raise ReviewAlreadyDecidedError("该记录已完成复核，不能重复提交")
+    if judgement not in {"malicious", "benign"}:
+        raise ReviewDataError("人工结论必须是 malicious 或 benign")
+
+    alert = None
+    if judgement == "malicious":
+        if not attack_type:
+            raise ReviewDataError("判定为恶意时必须填写攻击类型")
+        try:
+            summary = json.loads(review.request_summary)
+        except json.JSONDecodeError as exc:
+            raise ReviewDataError("请求摘要数据损坏，无法生成告警") from exc
+        if not isinstance(summary, dict):
+            raise ReviewDataError("请求摘要格式错误，无法生成告警")
+        alert = Alert(
+            task_id=review.task_id,
+            src_ip=str(summary.get("src_ip", "")),
+            dst_ip=str(summary.get("dst_ip", "")),
+            src_port=summary.get("src_port"),
+            dst_port=summary.get("dst_port"),
+            method=str(summary.get("method", "")),
+            path=str(summary.get("path", "")),
+            query=str(summary.get("query", "")),
+            attack_type=attack_type,
+            risk_level=_risk_level_from_score(review.original_score),
+            score=review.original_score,
+            matched_rules=review.matched_rules,
+            ai_judgement="malicious",
+            ai_reason=reason,
+            reason=reason,
+        )
+        db.add(alert)
+        db.flush()
+        review.alert_id = alert.id
+        if review.task_id is not None:
+            task = db.get(Task, review.task_id)
+            if task is not None:
+                task.alert_count += 1
+
+    review.judgement = judgement
+    review.attack_type = attack_type if judgement == "malicious" else "Normal"
+    review.reason = reason
+    review.status = "completed"
+    review.model = "manual"
+    db.commit()
+    db.refresh(review)
+    return review
 
 
 def get_stats(db: Session) -> dict[str, Any]:

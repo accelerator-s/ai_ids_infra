@@ -11,7 +11,7 @@ const SINGLETONS = [
 ];
 
 // 每个页签一个组件，按路由显示或隐藏。
-const PANES = ["overview", "capture", "pcap", "alerts", "reports", "config"];
+const PANES = ["overview", "capture", "pcap", "alerts", "reviews", "reports", "config"];
 
 const DEFAULT_ROUTE = "overview";
 const HEALTH_INTERVAL = 15000;
@@ -48,6 +48,7 @@ async function main() {
 
   bus.on("route", (id) => {
     if (!panes.has(id)) return;
+    content.classList.toggle("content-body--reviews", id === "reviews");
     for (const [name, host] of panes) {
       const active = name === id;
       host.hidden = !active;
