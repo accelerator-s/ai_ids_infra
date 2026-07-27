@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import ipaddress
+import locale
 import logging
 import socket
 import subprocess
+import sys
 import threading
+import time
 from collections import defaultdict, deque
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import pyshark
@@ -44,13 +47,25 @@ class InterfaceDiscoveryError(RuntimeError):
     """tshark 网卡发现失败。"""
 
 
+def _decode_process_output(raw: bytes | str) -> str:
+    """按 UTF-8 → 系统默认编码的顺序解码子进程输出，兼容 Linux/WSL 与中文 Windows。"""
+    if isinstance(raw, str):
+        return raw
+    fallback = locale.getpreferredencoding(False) or ("gbk" if sys.platform == "win32" else "utf-8")
+    for encoding in dict.fromkeys(["utf-8", fallback]):
+        try:
+            return raw.decode(encoding)
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return raw.decode("utf-8", errors="replace")
+
+
 def list_tshark_interfaces(timeout: float = 5.0) -> list[dict[str, str]]:
     """通过 tshark -D 返回稳定的网卡名称和描述。"""
     try:
         result = subprocess.run(
             ["tshark", "-D"],
             capture_output=True,
-            text=True,
             timeout=timeout,
             check=True,
         )
@@ -59,14 +74,15 @@ def list_tshark_interfaces(timeout: float = 5.0) -> list[dict[str, str]]:
     except subprocess.TimeoutExpired as exc:
         raise InterfaceDiscoveryError("tshark interface discovery timed out") from exc
     except subprocess.CalledProcessError as exc:
-        detail = (exc.stderr or "").strip()
+        detail = _decode_process_output(exc.stderr or b"").strip()
         message = "tshark interface discovery failed"
         raise InterfaceDiscoveryError(f"{message}: {detail}" if detail else message) from exc
     except OSError as exc:
         raise InterfaceDiscoveryError(f"unable to run tshark: {exc}") from exc
 
+    stdout = _decode_process_output(result.stdout or b"")
     interfaces: list[dict[str, str]] = []
-    for line in result.stdout.splitlines():
+    for line in stdout.splitlines():
         entry = line.strip()
         if not entry or ". " not in entry:
             continue
@@ -148,6 +164,8 @@ class LiveCaptureSession:
     _packet_count: int = field(default=0, init=False)
     _http_count: int = field(default=0, init=False)
     _alert_count: int = field(default=0, init=False)
+    _last_persist_time: float = field(default=0.0, init=False)
+    _last_persist_packets: int = field(default=0, init=False)
 
     def __post_init__(self) -> None:
         if self.rule_engine is None:
@@ -351,8 +369,19 @@ class LiveCaptureSession:
         )
         return int(alert is not None)
 
+    _PERSIST_INTERVAL: float = 2.0
+    _PERSIST_PACKET_DELTA: int = 50
+
     def _persist_counts(self, db: Session, *, status: str = "running", finished: bool = False) -> None:
-        """持久化当前统计及可选的最终任务状态。"""
+        """持久化当前统计及可选的最终任务状态；非结束时按间隔节流写入。"""
+        if not finished:
+            now = time.monotonic()
+            packet_delta = self._packet_count - self._last_persist_packets
+            if now - self._last_persist_time < self._PERSIST_INTERVAL and packet_delta < self._PERSIST_PACKET_DELTA:
+                return
+            self._last_persist_time = now
+            self._last_persist_packets = self._packet_count
+
         crud.update_task(
             db,
             self.task_id,
@@ -360,7 +389,7 @@ class LiveCaptureSession:
             packet_count=self._packet_count,
             http_count=self._http_count,
             alert_count=self._alert_count,
-            finished_at=datetime.utcnow() if finished else None,
+            finished_at=datetime.now(UTC) if finished else None,
         )
 
     def _close_capture(self) -> None:
@@ -409,7 +438,7 @@ class LiveCaptureManager:
         except Exception:
             with self._lock:
                 self._sessions.pop(task.id, None)
-            crud.update_task(db, task.id, status="failed", finished_at=datetime.utcnow())
+            crud.update_task(db, task.id, status="failed", finished_at=datetime.now(UTC))
             raise
         return task
 
