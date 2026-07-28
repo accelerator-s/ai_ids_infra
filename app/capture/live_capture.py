@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 import locale
 import logging
@@ -187,6 +188,8 @@ class LiveCaptureSession:
 
     def run(self) -> None:
         """在线程中抓包、关联 HTTP 请求响应并写入检测结果。"""
+        # pyshark 在本抓包线程里要用事件循环，Py3.12 非主线程默认没有，必须显式建一个。
+        asyncio.set_event_loop(asyncio.new_event_loop())
         db: Session | None = None
         pending: dict[str, deque[dict[str, Any]]] = defaultdict(deque)
         status = "completed"

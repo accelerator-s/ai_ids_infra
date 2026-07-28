@@ -219,3 +219,5 @@ __marimo__/
 
 # SQLite database (contains runtime data and API keys)
 data/ids.db
+
+.claude
