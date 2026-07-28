@@ -544,6 +544,13 @@ ai_ids_infra/
 │   │   └── alerts/  reports/  config/
 │   └── resources/icons/            # 内联 SVG 图标
 └── docs/
+    ├── images
+        ├── 攻击检测模块功能逻辑图.png
+        ├── 结果展示模块功能逻辑图.png
+        ├── 流量采集模块功能逻辑图.png
+        ├── 系统总体功能逻辑图.png
+        ├── 协议解析模块功能逻辑图.png
+        └── AI分析模块功能逻辑图.png
     ├── 总体设计报告模板.docx
     ├── 结题报告模板.doc
     └── 选题表.doc
@@ -553,9 +560,6 @@ ai_ids_infra/
 
 接口定义、请求响应示例和运行条件统一维护在 [API.md](API.md)，
 路由实现见 `app/api/routes.py`，两者保持同步。
-
-- 已可用：系统状态、运行配置、大模型连通、AI 评测报告、pcap 离线分析、任务、告警、统计、开发辅助。
-- 实时抓包与 pcap 离线分析已实现，运行时需要 tshark。
 
 ## WebUI 页面
 
