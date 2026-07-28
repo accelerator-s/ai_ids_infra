@@ -179,7 +179,6 @@ AI 报告：选择任务生成评测报告、查看历史报告、失败报告�
 系统配置：服务端口、大模型接入参数
 ```
 
-
 ### 2. 后端 API 服务模块
 
 后端 API 负责连接前端页面、抓包任务、检测模块和数据库。
@@ -488,7 +487,7 @@ AI 研判原因
 | 规则检测 | Python 正则表达式 + JSON 规则库 |
 | 行为统计 | Python 时间窗口统计 |
 | 数据存储 | SQLite + SQLAlchemy |
-| 运行配置 | WebUI 配置面板 + settings 表|
+| 运行配置 | WebUI 配置面板 + settings 表 |
 | AI 辅助研判与评测报告 | OpenAI 兼容大模型 API + JSON 结构化输出 |
 | 前端 | 原生 HTML + CSS + JavaScript |
 | 可视化图表 | 自绘 CSS / SVG 图表 |
