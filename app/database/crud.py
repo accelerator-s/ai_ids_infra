@@ -1,6 +1,6 @@
 import json
 from collections import Counter
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import desc, func, text
@@ -24,6 +24,13 @@ class ReviewDataError(ValueError):
 
 def _json_dumps(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False)
+
+
+def _iso_utc(value: datetime | None) -> str | None:
+    """序列化时间戳并标注 UTC，便于前端按本地时区展示。"""
+    if value is None:
+        return None
+    return (value if value.tzinfo else value.replace(tzinfo=UTC)).isoformat()
 
 
 def get_settings(db: Session) -> dict[str, Any]:
@@ -397,8 +404,8 @@ def task_to_dict(task: Task) -> dict[str, Any]:
         "packet_count": task.packet_count,
         "http_count": task.http_count,
         "alert_count": task.alert_count,
-        "created_at": task.created_at.isoformat() if task.created_at else None,
-        "finished_at": task.finished_at.isoformat() if task.finished_at else None,
+        "created_at": _iso_utc(task.created_at),
+        "finished_at": _iso_utc(task.finished_at),
     }
 
 
@@ -415,7 +422,7 @@ def report_to_dict(report: Report) -> dict[str, Any]:
         "key_findings": _json_loads_list(report.key_findings),
         "recommendations": _json_loads_list(report.recommendations),
         "error_message": report.error_message,
-        "created_at": report.created_at.isoformat() if report.created_at else None,
+        "created_at": _iso_utc(report.created_at),
     }
 
 
@@ -453,7 +460,7 @@ def alert_to_dict(alert: Alert) -> dict[str, Any]:
         "ai_reason": alert.ai_reason,
         "reason": alert.reason,
         "status": alert.status,
-        "created_at": alert.created_at.isoformat() if alert.created_at else None,
+        "created_at": _iso_utc(alert.created_at),
     }
 
 
@@ -477,5 +484,5 @@ def ai_review_to_dict(review: AiReview) -> dict[str, Any]:
         "status": review.status,
         "model": review.model,
         "prompt_version": review.prompt_version,
-        "created_at": review.created_at.isoformat() if review.created_at else None,
+        "created_at": _iso_utc(review.created_at),
     }

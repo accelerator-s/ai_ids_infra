@@ -2,7 +2,7 @@
 
 import asyncio
 import shutil
-from datetime import datetime
+from datetime import UTC, datetime
 from importlib.util import find_spec
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -647,7 +647,7 @@ def update_task(
         packet_count=request.packet_count,
         http_count=request.http_count,
         alert_count=request.alert_count,
-        finished_at=datetime.utcnow() if request.finished else None,
+        finished_at=datetime.now(UTC) if request.finished else None,
     )
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
