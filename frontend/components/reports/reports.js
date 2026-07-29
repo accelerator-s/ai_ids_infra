@@ -194,5 +194,6 @@ function appendPoints(item, label, entries) {
 
 function formatTime(iso) {
   if (!iso) return "—";
-  return iso.replace("T", " ").slice(0, 19);
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? iso : date.toLocaleString("zh-CN", { hour12: false });
 }
